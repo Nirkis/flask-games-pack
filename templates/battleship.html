@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Морской бой</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #0b1d3a 0%, #071427 100%);
+    color: #e6f0ff;
+    min-height: 100vh;
+  }
+  header {
+    padding: 12px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  h1 { margin: 0; font-size: 18px; letter-spacing: 1px; }
+  .header-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .code {
+    font-family: ui-monospace, monospace;
+    font-size: 16px;
+    background: rgba(255,255,255,0.08);
+    padding: 4px 12px;
+    border-radius: 6px;
+    letter-spacing: 4px;
+    font-weight: 700;
+  }
+  .phase-badge {
+    padding: 5px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .phase-lobby     { background: #475569; }
+  .phase-placement { background: #b45309; }
+  .phase-battle    { background: #b91c1c; }
+  .phase-over      { background: #15803d; }
+  .turn-info { font-size: 14px; opacity: 0.9; }
+  .turn-info.you { color: #4ade80; font-weight: 700; opacity: 1; }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr) 320px;
+    gap: 18px;
+    padding: 18px;
+    max-width: 1600px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 1200px) {
+    main { grid-template-columns: 1fr 1fr; }
+    aside { grid-column: 1 / -1; }
+  }
+  @media (max-width: 780px) { main { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .panel h2 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    opacity: 0.75;
+    font-weight: 700;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 2px;
+    background: rgba(0,0,0,0.35);
+    padding: 4px;
+    border-radius: 8px;
+    aspect-ratio: 1 / 1;
+    user-select: none;
+    position: relative;
+  }
+  .cell {
+    background: #1c3557;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.1s;
+    min-height: 0;
+  }
+  .cell:hover { background: #2a4f7c; }
+  .cell.disabled { cursor: default; }
+  .cell.disabled:hover { background: #1c3557; }
+  .cell.ship { background: #64748b; }
+  .cell.ship-enemy { background: #94a3b8; }
+  .cell.hit { background: #dc2626; }
+  .cell.hit::after {
+    content: '✕';
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 900; font-size: 14px;
+  }
+  .cell.miss { background: #0b1a2e; }
+  .cell.miss::after {
+    content: '';
+    position: absolute; inset: 30%;
+    background: #4a7ba7; border-radius: 50%;
+  }
+  .cell.preview-ok  { background: #10b981; }
+  .cell.preview-bad { background: #ef4444; }
+
+  .fleet-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .fleet-item {
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: -1px;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .fleet-item:hover { background: rgba(255,255,255,0.14); }
+  .fleet-item.sel    { background: #2563eb; border-color: #3b82f6; }
+  .fleet-item.placed { opacity: 0.35; text-decoration: line-through; }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  button:hover:not(:disabled) { background: #1d4ed8; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: #475569; }
+  button.secondary:hover:not(:disabled) { background: #334155; }
+  button.success { background: #16a34a; }
+  button.success:hover:not(:disabled) { background: #15803d; }
+
+  .enemy-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .enemy-tab {
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.12s;
+  }
+  .enemy-tab:hover { background: rgba(255,255,255,0.12); }
+  .enemy-tab.active { background: #2563eb; border-color: #3b82f6; }
+  .enemy-tab.dead { opacity: 0.5; }
+
+  .players-list { list-style: none; padding: 0; margin: 0; }
+  .players-list li {
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: rgba(255,255,255,0.04);
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .players-list li.me { background: rgba(37,99,235,0.25); border: 1px solid rgba(59,130,246,0.4); }
+  .players-list li.turn { box-shadow: inset 3px 0 0 #4ade80; }
+  .players-list li.dead { opacity: 0.4; text-decoration: line-through; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,0.1); }
+  .tag.ready { background: #15803d; }
+  .tag.wait  { background: #92400e; }
+
+  #chart-wrap { position: relative; height: 180px; }
+
+  .log {
+    max-height: 260px;
+    overflow-y: auto;
+    font-size: 12.5px;
+    font-family: ui-monospace, monospace;
+    line-height: 1.55;
+  }
+  .log div { padding: 2px 0; opacity: 0.9; }
+  .log .t { color: #64748b; margin-right: 6px; }
+
+  .message {
+    padding: 20px;
+    text-align: center;
+    opacity: 0.75;
+    font-size: 14px;
+  }
+  .banner {
+    padding: 12px 16px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 700;
+    margin-bottom: 14px;
+    font-size: 15px;
+  }
+  .banner.win  { background: #15803d; }
+  .banner.lose { background: #991b1b; }
+  .banner.info { background: #1e40af; }
+
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #b91c1c;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: transform 0.25s ease;
+    z-index: 100;
+    pointer-events: none;
+    max-width: 90vw;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚓ Морской бой</h1>
+  <div class="header-right">
+    <span class="code" id="game-code">----</span>
+    <span class="phase-badge phase-lobby" id="phase-badge">Лобби</span>
+    <span class="turn-info" id="turn-info"></span>
+    <button class="secondary" id="leave-btn" style="background:#475569;">Выйти</button>
+  </div>
+</header>
+
+<main>
+  <section class="col-left">
+    <div class="panel">
+      <h2>Моё поле</h2>
+      <div class="board" id="board-mine"></div>
+    </div>
+
+    <div class="panel" id="placement-panel" style="display:none">
+      <h2>Расстановка</h2>
+      <div class="fleet-list" id="fleet-list"></div>
+      <div class="controls">
+        <button class="secondary" id="btn-rotate">Повернуть (ПКМ)</button>
+        <button class="secondary" id="btn-random">Случайно</button>
+        <button class="success" id="btn-ready" disabled>Готов</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="col-center">
+    <div class="panel" id="center-panel">
+      <h2 id="center-title">Противники</h2>
+      <div id="center-content">
+        <div class="message" id="center-message">Ожидание игроков…</div>
+        <div id="enemy-tabs" class="enemy-tabs" style="display:none"></div>
+        <div class="board" id="board-enemy" style="display:none"></div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="col-right">
+    <div class="panel">
+      <h2>Игроки</h2>
+      <ul class="players-list" id="players-list"></ul>
+    </div>
+
+    <div class="panel">
+      <h2>Статистика</h2>
+      <div id="chart-wrap"><canvas id="chart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h2>Журнал</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </aside>
+</main>
+
+<div id="toast"></div>
+
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+
+{% raw %}
+<script>
+(function () {
+  'use strict';
+
+  const BOARD = 10;
+  const FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+
+  const $ = s => document.querySelector(s);
+  const boardMine   = $('#board-mine');
+  const boardEnemy  = $('#board-enemy');
+  const enemyTabs   = $('#enemy-tabs');
+  const centerMsg   = $('#center-message');
+  const playersList = $('#players-list');
+  const logEl       = $('#log');
+  const toastEl     = $('#toast');
+
+  let state = null;
+  let pollTimer = null;
+  let pollBusy = false;
+
+  let placed = new Array(FLEET.length).fill(null);
+  let sel    = 0;
+  let dir    = 'h';
+  let hover  = null;
+  let activeEnemy = 0;
+  let chart = null;
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.remove('show'), 2200);
+  }
+
+  async function api(path, body) {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    });
+    try { return await res.json(); }
+    catch (e) { return { ok: false, error: 'Ошибка сети' }; }
+  }
+
+  function goHome() {
+    fetch('/api/leave', { method: 'POST', credentials: 'same-origin' })
+      .catch(function () {})
+      .then(function () { window.location.href = '/'; });
+  }
+
+  $('#leave-btn').addEventListener('click', async () => {
+    try { await api('/api/leave', {}); } catch (e) {}
+    goHome();
+  });
+
+  function localShipCells(size, r, c, d) {
+    const out = [];
+    for (let i = 0; i < size; i++) out.push(d === 'h' ? [r, c + i] : [r + i, c]);
+    return out;
+  }
+
+  function localPlacedMap() {
+    const m = new Map();
+    placed.forEach((p, i) => {
+      if (!p) return;
+      localShipCells(FLEET[i], p.r, p.c, p.dir).forEach(([r, c]) => m.set(r + ',' + c, i));
+    });
+    return m;
+  }
+
+  function canPlaceLocal(r, c, size, d) {
+    const cells = localShipCells(size, r, c, d);
+    for (const [rr, cc] of cells) {
+      if (rr < 0 || rr >= BOARD || cc < 0 || cc >= BOARD) return false;
+    }
+    const map = localPlacedMap();
+    for (const [rr, cc] of cells) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (map.has((rr + dr) + ',' + (cc + dc))) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function ensureBoardCells(container) {
+    if (container.childElementCount !== BOARD * BOARD) {
+      container.innerHTML = '';
+      for (let r = 0; r < BOARD; r++) {
+        for (let c = 0; c < BOARD; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          container.appendChild(cell);
+        }
+      }
+    }
+  }
+
+  function renderMinePlacement() {
+    ensureBoardCells(boardMine);
+    const map = localPlacedMap();
+    const preview = new Map();
+    if (hover && sel != null) {
+      const size = FLEET[sel];
+      const ok = canPlaceLocal(hover.r, hover.c, size, dir);
+      for (const [r, c] of localShipCells(size, hover.r, hover.c, dir)) {
+        if (r >= 0 && r < BOARD && c >= 0 && c < BOARD) preview.set(r + ',' + c, ok);
+      }
+    }
+    boardMine.querySelectorAll('.cell').forEach(cell => {
+      const r = +cell.dataset.r, c = +cell.dataset.c, key = r + ',' + c;
+      cell.className = 'cell';
+      if (map.has(key)) cell.classList.add('ship');
+      if (preview.has(key)) cell.classList.add(preview.get(key) ? 'preview-ok' : 'preview-bad');
+    });
+  }
+
+  function renderMineBattle() {
+    ensureBoardCells(boardMine);
+    const grid = state.my_grid;
+    boardMine.querySelectorAll('.cell').forEach(cell => {
+      const r = +cell.dataset.r, c = +cell.dataset.c;
+      cell.className = 'cell disabled';
+      const v = grid[r][c];
+      if (v === 1) cell.classList.add('ship');
+      else if (v === 2) cell.classList.add('miss');
+      else if (v === 3) cell.classList.add('hit');
+    });
+  }
+
+  function renderEnemyBoard() {
+    const enemy = state.enemies[activeEnemy];
+    if (!enemy) return;
+    ensureBoardCells(boardEnemy);
+    const myTurn = state.phase === 'battle' && state.turn === state.you && state.players[state.you].alive;
+
+    boardEnemy.querySelectorAll('.cell').forEach(cell => {
+      const r = +cell.dataset.r, c = +cell.dataset.c;
+      const v = enemy.cells[r + ',' + c];
+      cell.className = 'cell';
+      if (v === 'hit') cell.classList.add('hit');
+      else if (v === 'miss') cell.classList.add('miss');
+      else if (v === 'ship') cell.classList.add('ship-enemy');
+      if (!myTurn || v || !enemy.alive) cell.classList.add('disabled');
+    });
+  }
+
+  function renderFleetList() {
+    const el = $('#fleet-list');
+    el.innerHTML = FLEET.map((size, i) => {
+      const isPlaced = !!placed[i];
+      const isSel = i === sel && !isPlaced;
+      const cls = ['fleet-item'];
+      if (isPlaced) cls.push('placed');
+      if (isSel) cls.push('sel');
+      return '<div class="' + cls.join(' ') + '" data-i="' + i + '">' +
+             '■'.repeat(size) + '</div>';
+    }).join('');
+  }
+
+  function renderPlayers() {
+    playersList.innerHTML = state.players.map((p, i) => {
+      const cls = [];
+      if (i === state.you) cls.push('me');
+      if (!p.alive) cls.push('dead');
+      if (state.phase === 'battle' && state.turn === i) cls.push('turn');
+
+      let status = '';
+      if (state.phase === 'lobby') {
+        status = '<span class="tag">в лобби</span>';
+      } else if (state.phase === 'placement') {
+        status = p.ready ? '<span class="tag ready">готов</span>'
+                         : '<span class="tag wait">ставит</span>';
+      } else {
+        status = '<span class="tag">' + p.ships_left + '/' + p.ships_total + '</span>';
+      }
+      const me = i === state.you ? ' (вы)' : '';
+      return '<li class="' + cls.join(' ') + '"><span>' + escapeHtml(p.name) + me + '</span>' + status + '</li>';
+    }).join('');
+  }
+
+  function renderEnemyTabs() {
+    if (state.enemies.length <= 1) { enemyTabs.style.display = 'none'; return; }
+    enemyTabs.style.display = 'flex';
+    enemyTabs.innerHTML = state.enemies.map((e, i) => {
+      const cls = ['enemy-tab'];
+      if (i === activeEnemy) cls.push('active');
+      if (!e.alive) cls.push('dead');
+      return '<div class="' + cls.join(' ') + '" data-i="' + i + '">' +
+             escapeHtml(e.name) + ' · ' + e.ships_left + '</div>';
+    }).join('');
+  }
+
+  function renderLog() {
+    const lines = state.log.map(l =>
+      '<div><span class="t">' + l.t + '</span>' + escapeHtml(l.text) + '</div>'
+    );
+    const atBottom = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 30;
+    logEl.innerHTML = lines.join('');
+    if (atBottom) logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function renderChart() {
+    const labels = state.players.map(p => p.name);
+    const data = {
+      labels,
+      datasets: [
+        { label: 'Попадания', data: state.players.map(p => p.stats.hits),   backgroundColor: '#dc2626' },
+        { label: 'Промахи',   data: state.players.map(p => p.stats.misses), backgroundColor: '#3b82f6' },
+        { label: 'Потоплено', data: state.players.map(p => p.stats.sunk),   backgroundColor: '#f59e0b' }
+      ]
+    };
+    if (typeof Chart === 'undefined') return;
+    if (!chart) {
+      const ctx = document.getElementById('chart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data,
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 11 }, boxWidth: 12 } } },
+          scales: {
+            x: { ticks: { color: '#cbd5e1', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.06)' } },
+            y: { beginAtZero: true, ticks: { color: '#cbd5e1', precision: 0, font: { size: 11 } },
+                 grid: { color: 'rgba(255,255,255,0.06)' } }
+          }
+        }
+      });
+    } else {
+      chart.data = data;
+      chart.update('none');
+    }
+  }
+
+  function renderHeader() {
+    $('#game-code').textContent = state.game_id;
+    const phaseNames = { lobby: 'Лобби', placement: 'Расстановка', battle: 'Бой', over: 'Игра окончена' };
+    const badge = $('#phase-badge');
+    badge.textContent = phaseNames[state.phase] || state.phase;
+    badge.className = 'phase-badge phase-' + state.phase;
+
+    const info = $('#turn-info');
+    if (state.phase === 'battle') {
+      if (state.turn === state.you) {
+        info.textContent = '▶ Ваш ход';
+        info.classList.add('you');
+      } else {
+        info.textContent = 'Ход: ' + state.players[state.turn].name;
+        info.classList.remove('you');
+      }
+    } else if (state.phase === 'over') {
+      const w = state.winner;
+      if (w === null) info.textContent = 'Ничья';
+      else if (w === state.you) { info.textContent = '🏆 Вы победили!'; info.classList.add('you'); }
+      else info.textContent = 'Победитель: ' + state.players[w].name;
+    } else {
+      info.textContent = '';
+      info.classList.remove('you');
+    }
+  }
+
+  function renderCenter() {
+    if (state.phase === 'lobby') {
+      enemyTabs.style.display = 'none';
+      boardEnemy.style.display = 'none';
+      centerMsg.style.display = 'block';
+      const n = state.players.length;
+      centerMsg.innerHTML =
+        '<div class="banner info">Ожидание игроков (' + n + '/' + state.max_players + ')</div>' +
+        '<p>Поделитесь кодом игры: <b>' + state.game_id + '</b></p>' +
+        '<p>Нужно минимум ' + state.min_players + ' игрока.</p>' +
+        '<div class="controls" style="justify-content:center;margin-top:14px">' +
+          '<button id="btn-start"' + (n >= state.min_players ? '' : ' disabled') + '>Начать игру</button>' +
+        '</div>';
+    } else if (state.phase === 'placement') {
+      enemyTabs.style.display = 'none';
+      boardEnemy.style.display = 'none';
+      centerMsg.style.display = 'block';
+      const ready = state.players.filter(p => p.ready).length;
+      const meReady = state.players[state.you].ready;
+      centerMsg.innerHTML =
+        '<div class="banner info">' + (meReady ? 'Вы готовы. Ожидание других…' : 'Расставьте корабли слева') + '</div>' +
+        '<p>Готовы: ' + ready + ' из ' + state.players.length + '</p>';
+    } else {
+      centerMsg.style.display = 'none';
+      renderEnemyTabs();
+      boardEnemy.style.display = 'grid';
+      renderEnemyBoard();
+    }
+  }
+
+  function render() {
+    if (!state) return;
+    if (activeEnemy >= state.enemies.length) activeEnemy = 0;
+    renderHeader();
+    renderPlayers();
+    renderFleetList();
+    renderCenter();
+    renderLog();
+    renderChart();
+
+    if (state.phase === 'placement') {
+      $('#placement-panel').style.display = 'block';
+      if (placed[sel]) {
+        const next = placed.findIndex(p => !p);
+        sel = next === -1 ? null : next;
+      }
+      renderMinePlacement();
+      const allPlaced = placed.every(p => p);
+      const btn = $('#btn-ready');
+      btn.disabled = !allPlaced;
+      btn.textContent = state.players[state.you].ready ? 'Готов ✓' : 'Готов';
+    } else {
+      $('#placement-panel').style.display = 'none';
+      renderMineBattle();
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+  }
+
+  // --- События поля ---
+  boardMine.addEventListener('mousemove', e => {
+    if (!state || state.phase !== 'placement' || state.players[state.you].ready) return;
+    const t = e.target;
+    if (!t.classList || !t.classList.contains('cell')) return;
+    const r = +t.dataset.r, c = +t.dataset.c;
+    if (!hover || hover.r !== r || hover.c !== c) {
+      hover = { r, c };
+      renderMinePlacement();
+    }
+  });
+  boardMine.addEventListener('mouseleave', () => {
+    if (hover) { hover = null; renderMinePlacement(); }
+  });
+  boardMine.addEventListener('click', e => {
+    if (!state || state.phase !== 'placement' || state.players[state.you].ready) return;
+    const t = e.target;
+    if (!t.classList || !t.classList.contains('cell')) return;
+    const r = +t.dataset.r, c = +t.dataset.c;
+    const map = localPlacedMap();
+    const hitIdx = map.get(r + ',' + c);
+    if (hitIdx != null) {
+      placed[hitIdx] = null;
+      sel = hitIdx;
+      renderFleetList();
+      renderMinePlacement();
+      return;
+    }
+    if (sel == null) return;
+    if (!canPlaceLocal(r, c, FLEET[sel], dir)) { toast('Здесь нельзя поставить корабль'); return; }
+    placed[sel] = { r, c, dir };
+    const next = placed.findIndex(p => !p);
+    sel = next === -1 ? null : next;
+    renderFleetList();
+    renderMinePlacement();
+    $('#btn-ready').disabled = !placed.every(p => p);
+  });
+  boardMine.addEventListener('contextmenu', e => {
+    if (!state || state.phase !== 'placement' || state.players[state.you].ready) return;
+    e.preventDefault();
+    dir = (dir === 'h') ? 'v' : 'h';
+    renderMinePlacement();
+  });
+
+  boardEnemy.addEventListener('click', async e => {
+    if (!state || state.phase !== 'battle') return;
+    if (state.turn !== state.you) { toast('Сейчас не ваш ход'); return; }
+    const t = e.target;
+    if (!t.classList || !t.classList.contains('cell')) return;
+    if (t.classList.contains('disabled')) return;
+    const r = +t.dataset.r, c = +t.dataset.c;
+    const enemy = state.enemies[activeEnemy];
+    if (!enemy || !enemy.alive) return;
+    const res = await api('/bs/api/shoot', { target: enemy.index, r, c });
+    if (!res.ok) { toast(res.error || 'Ошибка выстрела'); return; }
+    if (res.state) applyState(res.state);
+    if (res.result === 'hit') toast('Попадание! Стреляйте снова');
+    else toast('Мимо…');
+  });
+
+  enemyTabs.addEventListener('click', e => {
+    const t = e.target.closest('.enemy-tab');
+    if (!t) return;
+    activeEnemy = +t.dataset.i;
+    renderEnemyTabs();
+    renderEnemyBoard();
+  });
+
+  $('#fleet-list').addEventListener('click', e => {
+    if (!state || state.phase !== 'placement' || state.players[state.you].ready) return;
+    const t = e.target.closest('.fleet-item');
+    if (!t) return;
+    const i = +t.dataset.i;
+    if (placed[i]) { placed[i] = null; sel = i; }
+    else sel = i;
+    renderFleetList();
+    renderMinePlacement();
+    $('#btn-ready').disabled = !placed.every(p => p);
+  });
+
+  $('#btn-rotate').addEventListener('click', () => {
+    dir = (dir === 'h') ? 'v' : 'h';
+    renderMinePlacement();
+  });
+  $('#btn-random').addEventListener('click', async () => {
+    const res = await api('/bs/api/place', { random: true });
+    if (!res.ok) { toast(res.error || 'Ошибка'); return; }
+    if (res.state) applyState(res.state);
+  });
+  $('#btn-ready').addEventListener('click', async () => {
+    const ships = placed.map((p, i) => ({ size: FLEET[i], r: p.r, c: p.c, dir: p.dir }));
+    const res = await api('/bs/api/place', { ships });
+    if (!res.ok) { toast(res.error || 'Ошибка расстановки'); return; }
+    if (res.state) applyState(res.state);
+  });
+
+  document.addEventListener('click', async e => {
+    if (e.target && e.target.id === 'btn-start') {
+      const res = await api('/bs/api/start', {});
+      if (!res.ok) { toast(res.error || 'Не удалось начать игру'); return; }
+      const s = await fetch('/bs/api/state').then(r => r.json());
+      if (s.ok) applyState(s.state);
+    }
+  });
+
+  function applyState(newState) {
+    const prevPhase = state ? state.phase : null;
+    state = newState;
+    if (prevPhase !== 'placement' && state.phase === 'placement') {
+      placed = new Array(FLEET.length).fill(null);
+      sel = 0; dir = 'h'; hover = null;
+    }
+    render();
+  }
+
+  async function poll() {
+    if (pollBusy) return;
+    pollBusy = true;
+    try {
+      const res = await fetch('/bs/api/state');
+      if (res.status === 404) { clearInterval(pollTimer); goHome(); return; }
+      const data = await res.json();
+      if (!data.ok) { clearInterval(pollTimer); goHome(); return; }
+      applyState(data.state);
+    } catch (e) {
+    } finally {
+      pollBusy = false;
+    }
+  }
+
+  async function boot() {
+    const res = await fetch('/bs/api/state');
+    if (res.status === 404) { goHome(); return; }
+    const data = await res.json();
+    if (!data.ok) { goHome(); return; }
+    applyState(data.state);
+    pollTimer = setInterval(poll, 1500);
+  }
+
+  boot();
+})();
+</script>
+{% endraw %}
+</body>
+</html>
