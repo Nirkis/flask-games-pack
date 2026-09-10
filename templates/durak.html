@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дурак — переводной</title>
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; min-height: 100vh; color: #f1f1f1;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1e5631, #0d2b18 70%);
+  }
+  h1 { margin: 0 0 14px; font-size: 22px; letter-spacing: 1px; text-align: center; color: #f4d35e; }
+
+  .layout {
+    display: grid; grid-template-columns: 1fr 320px; gap: 16px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px; padding: 12px; margin-bottom: 12px;
+  }
+  .panel h2 {
+    margin: 0 0 8px; font-size: 13px; color: #9ad29a;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  .top-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .info { font-size: 14px; }
+  .info b { color: #f4d35e; }
+
+  .hand { display: flex; flex-wrap: wrap; gap: 6px; min-height: 96px; }
+  .hand.mini { min-height: 60px; }
+  .hand.mini .card { width: 40px; height: 58px; padding: 3px; }
+  .hand.mini .card .rank { font-size: 13px; }
+  .hand.mini .card .suit { font-size: 15px; }
+
+  .card {
+    width: 62px; height: 90px; border-radius: 8px;
+    background: #fffdf7; color: #111; font-weight: 700;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 6px; cursor: pointer; user-select: none;
+    border: 2px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.4);
+    transition: transform .12s, box-shadow .12s, border-color .12s;
+  }
+  .card:hover { transform: translateY(-6px); }
+  .card.red   { color: #c62828; }
+  .card .rank { font-size: 18px; line-height: 1; }
+  .card .suit { font-size: 22px; line-height: 1; align-self: flex-end; }
+  .card.legal    { border-color: #6fe36f; box-shadow: 0 0 10px #6fe36f; }
+  .card.transfer { border-color: #6aa8ff; box-shadow: 0 0 10px #6aa8ff; }
+  .card.disabled { opacity: .55; cursor: not-allowed; }
+  .card.disabled:hover { transform: none; }
+
+  .card.back {
+    background: repeating-linear-gradient(45deg, #254d8a 0 6px, #16305c 6px 12px);
+    border: 2px solid #0f2444; color: transparent;
+  }
+
+  .table-area { display: flex; flex-wrap: wrap; gap: 22px; min-height: 110px; align-items: center; }
+  .pair { position: relative; width: 62px; height: 90px; }
+  .pair .def { position: absolute; top: 8px; left: 14px; transform: rotate(6deg); }
+
+  button {
+    background: #f4d35e; color: #1a1a1a; border: none;
+    padding: 10px 18px; border-radius: 8px; font-weight: 700;
+    font-size: 14px; cursor: pointer; transition: filter .15s;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.sec    { background: #4a6fa5; color: #fff; }
+  button.active { background: #6aa8ff; color: #0d1b30; }
+  button.danger { background: #e05a5a; color: #fff; }
+
+  .status {
+    padding: 10px 14px; border-radius: 8px; font-weight: 600;
+    text-align: center; margin-bottom: 10px;
+  }
+  .status.turn   { background: #2c6e3f; color: #d6ffd6; }
+  .status.wait   { background: #7a6a1d; color: #fff6c9; }
+  .status.over   { background: #7a1d1d; color: #ffd6d6; }
+  .status.normal { background: #333;    color: #ddd; }
+
+  .log {
+    max-height: 200px; overflow-y: auto;
+    font-size: 13px; line-height: 1.5; color: #cfd8cf;
+  }
+  .log div { border-bottom: 1px dashed rgba(255,255,255,.08); padding: 2px 0; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .err { color: #ff9a9a; font-size: 13px; min-height: 18px; margin-top: 6px; }
+
+  .chart-wrap { position: relative; height: 230px; }
+  .legend {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 12px; margin-top: 6px; font-size: 12px; color: #aaa;
+  }
+  .legend i {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 2px; margin-right: 4px;
+  }
+
+  .role-badge {
+    display: inline-block; padding: 2px 8px; margin-left: 6px;
+    border-radius: 10px; font-size: 11px; font-weight: 700;
+  }
+  .role-a { background: #e05a5a; color: #fff; }
+  .role-d { background: #4a6fa5; color: #fff; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<h1>🃏 Дурак — переводной</h1>
+
+<div id="game" class="layout">
+  <div>
+    <div id="status" class="status normal">…</div>
+
+    <div class="panel">
+      <div class="top-bar">
+        <div class="info">
+          Козырь: <span id="trumpInfo"></span>
+          &nbsp;|&nbsp; Колода: <b id="deckCount">0</b>
+          &nbsp;|&nbsp; Сброшено: <b id="discardCount">0</b>
+        </div>
+        <div>
+          <span style="font-size:12px;color:#888;">
+            обновлено: <span id="lastUpdate">—</span>
+          </span>
+          <button class="sec" style="margin-left:10px;" onclick="resetGame()">Новая партия</button>
+          <button class="sec" style="margin-left:10px;" onclick="leaveTable()">Выйти</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="opponents"></div>
+
+    <div class="panel">
+      <h2>Стол</h2>
+      <div class="table-area" id="tableArea"></div>
+      <div class="controls" id="controls"></div>
+      <div class="err" id="gameErr"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Ваша рука — <span id="myName"></span></h2>
+      <div class="hand" id="myHand"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Статистика</h2>
+      <div class="chart-wrap"><canvas id="chart"></canvas></div>
+      <div class="legend" id="chartLegend"></div>
+    </div>
+    <div class="panel">
+      <h2>Журнал</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let STATE        = null;
+let chart        = null;
+let pollTimer    = null;
+let transferMode = false;
+
+const PLAYER_COLORS = ['#6fe36f', '#f4a35e', '#c08fff'];
+const DECK_COLOR    = '#6aa8ff';
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[c]));
+
+const isRed = suit => suit === '\u2665' || suit === '\u2666';
+
+function cardEl(card, opts = {}) {
+  const el = document.createElement('div');
+  el.className = 'card' + (isRed(card.s) ? ' red' : '');
+  if (opts.legal)     el.classList.add('legal');
+  if (opts.disabled)  el.classList.add('disabled');
+  if (opts.transfer)  el.classList.add('transfer');
+  el.innerHTML =
+    '<span class="rank">' + esc(card.r) + '</span>' +
+    '<span class="suit">' + esc(card.s) + '</span>';
+  if (opts.onclick) el.addEventListener('click', opts.onclick);
+  return el;
+}
+
+function goHome() {
+  fetch('/api/leave', { method: 'POST', credentials: 'same-origin' })
+    .catch(function () {})
+    .then(function () { window.location.href = '/'; });
+}
+
+async function api(url, method = 'GET', body = null) {
+  const opt = { method, headers: {} };
+  if (body) {
+    opt.headers['Content-Type'] = 'application/json';
+    opt.body = JSON.stringify(body);
+  }
+  const r = await fetch(url, opt);
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  return { ok: r.ok, data, status: r.status };
+}
+
+async function refresh() {
+  try {
+    const r = await fetch('/dk/api/state?_=' + Date.now(), { cache: 'no-store' });
+    if (r.status === 404) { goHome(); return; }
+    if (!r.ok) return;
+    const j = await r.json();
+    if (!j.ok) { goHome(); return; }
+    STATE = j.state;
+    render();
+    const lu = document.getElementById('lastUpdate');
+    if (lu) lu.textContent = new Date().toLocaleTimeString();
+  } catch (e) { console.error('refresh:', e); }
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(refresh, 500);
+}
+
+async function doAction(action, card) {
+  transferMode = false;
+  const body = { action };
+  if (card) body.card = card;
+  const { ok, data } = await api('/dk/api/action', 'POST', body);
+  const errEl = document.getElementById('gameErr');
+  if (!ok) { errEl.textContent = data.error || 'Ошибка'; return; }
+  errEl.textContent = '';
+  STATE = data;
+  render();
+}
+
+async function resetGame() {
+  const { ok, data } = await api('/dk/api/reset', 'POST', {});
+  if (!ok) {
+    document.getElementById('gameErr').textContent = data.error || 'Ошибка';
+    return;
+  }
+  document.getElementById('gameErr').textContent = '';
+  await refresh();
+}
+
+async function leaveTable() {
+  try { await api('/api/leave', 'POST', {}); } catch (e) {}
+  goHome();
+}
+
+function render() {
+  if (!STATE) return;
+  if (!STATE.joined) { goHome(); return; }
+  if (!STATE.can_transfer) transferMode = false;
+  renderTopBar();
+  renderStatus();
+  renderOpponents();
+  renderTable();
+  renderControls();
+  renderMyHand();
+  renderLog();
+  renderChart();
+}
+
+function renderTopBar() {
+  const tr = STATE.trump_card;
+  document.getElementById('trumpInfo').innerHTML =
+    '<span style="display:inline-block;padding:2px 6px;border-radius:4px;' +
+    'background:#fffdf7;color:' + (isRed(tr.s) ? '#c62828' : '#111') +
+    ';font-weight:700;">' + esc(tr.r) + esc(tr.s) + '</span>';
+  document.getElementById('deckCount').textContent    = STATE.deck_count;
+  document.getElementById('discardCount').textContent = STATE.discard_count;
+  document.getElementById('myName').textContent       = STATE.my_name;
+}
+
+function renderStatus() {
+  const s = document.getElementById('status');
+  s.className = 'status';
+  if (STATE.phase === 'over') {
+    s.classList.add('over');
+    if (STATE.draw)        s.textContent = 'Ничья!';
+    else if (STATE.i_lost) s.textContent = '😢 Вы — дурак!';
+    else                   s.textContent = '🏆 Вы выиграли!';
+  } else if (STATE.waiting_opponents) {
+    s.classList.add('wait');
+    s.textContent = 'Ожидание игроков (' + occupiedCount() + '/' + STATE.num_players + ')…';
+  } else if (STATE.i_am_defender) {
+    s.classList.add('turn');
+    s.textContent = 'Вы защищаетесь — бейте, переводите или берите';
+  } else if (STATE.i_am_attacker) {
+    s.classList.add('turn');
+    s.textContent = 'Вы атакуете — подкидывайте или скажите «Бито»';
+  } else {
+    s.classList.add('normal');
+    s.textContent = 'Вы в стороне — можете подкидывать карты';
+  }
+}
+
+function renderOpponents() {
+  const wrap = document.getElementById('opponents');
+  wrap.innerHTML = '';
+  (STATE.others || []).forEach(o => {
+    let badge = '';
+    if (o.is_attacker) badge = '<span class="role-badge role-a">атакует</span>';
+    if (o.is_defender) badge = '<span class="role-badge role-d">защищается</span>';
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.innerHTML = '<h2>' + esc(o.name) + badge + ' — карт: ' + o.hand_count + '</h2>';
+    const hand = document.createElement('div');
+    hand.className = 'hand mini';
+    for (let i = 0; i < o.hand_count; i++) {
+      const back = document.createElement('div');
+      back.className = 'card back';
+      hand.appendChild(back);
+    }
+    panel.appendChild(hand);
+    wrap.appendChild(panel);
+  });
+}
+
+function renderTable() {
+  const t = document.getElementById('tableArea');
+  t.innerHTML = '';
+  if (!STATE.table.length) {
+    t.innerHTML = '<span style="color:#888;">Стол пуст</span>';
+    return;
+  }
+  STATE.table.forEach(pair => {
+    const wrap = document.createElement('div');
+    wrap.className = 'pair';
+    wrap.appendChild(cardEl(pair.attack, { disabled: true }));
+    if (pair.defend) {
+      const d = cardEl(pair.defend, { disabled: true });
+      d.classList.add('def');
+      wrap.appendChild(d);
+    }
+    t.appendChild(wrap);
+  });
+}
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+
+  if (STATE.can_transfer) {
+    const b = document.createElement('button');
+    b.className = 'sec' + (transferMode ? ' active' : '');
+    b.textContent = transferMode ? '⇄ Перевод: выберите карту' : '⇄ Перевести';
+    b.onclick = () => { transferMode = !transferMode; render(); };
+    c.appendChild(b);
+  }
+
+  if (STATE.can_take) {
+    const b = document.createElement('button');
+    b.className = 'danger';
+    b.textContent = 'Взять карты';
+    b.onclick = () => doAction('take');
+    c.appendChild(b);
+  }
+
+  if (STATE.i_am_attacker && STATE.bite_seconds_left != null && STATE.phase === 'battle') {
+    const b = document.createElement('button');
+    const grace = STATE.bite_grace_left  || 0;
+    const sec   = STATE.bite_seconds_left || 0;
+    if (grace > 0.05) {
+      b.textContent = '⏳ Ждём соперников: ' + grace.toFixed(1) + ' с';
+      b.disabled = true;
+    } else {
+      b.textContent = 'Бито (авто через ' + Math.ceil(sec) + ' с)';
+      b.onclick = () => doAction('pass');
+    }
+    c.appendChild(b);
+  }
+}
+
+function renderMyHand() {
+  const el = document.getElementById('myHand');
+  el.innerHTML = '';
+
+  const setA = new Set((STATE.legal_attacks   || []).map(c => c.r + c.s));
+  const setD = new Set((STATE.legal_defends   || []).map(c => c.r + c.s));
+  const setT = new Set((STATE.legal_transfers || []).map(c => c.r + c.s));
+
+  STATE.my_hand.forEach(card => {
+    const key = card.r + card.s;
+    let legal = false, action = null, isTr = false;
+
+    if (STATE.phase === 'battle') {
+      if (transferMode && STATE.i_am_defender && setT.has(key)) {
+        legal = true; action = 'transfer'; isTr = true;
+      } else if (!STATE.i_am_defender && setA.has(key)) {
+        legal = true; action = 'attack';
+      } else if (STATE.i_am_defender && setD.has(key)) {
+        legal = true; action = 'defend';
+      }
+    }
+
+    el.appendChild(cardEl(card, {
+      legal, transfer: isTr, disabled: !legal,
+      onclick: legal ? () => doAction(action, card) : null,
+    }));
+  });
+}
+
+function renderLog() {
+  const el = document.getElementById('log');
+  el.innerHTML = (STATE.log || []).map(l => '<div>' + esc(l) + '</div>').join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function occupiedCount() {
+  return (STATE.occupied || []).filter(Boolean).length;
+}
+
+function renderChart() {
+  const hist   = STATE.history || [];
+  const labels = hist.map(h => h.n);
+  const datasets = [];
+
+  const order = [STATE.slot].concat(
+    Array.from({ length: STATE.num_players }, (_, i) => i).filter(i => i !== STATE.slot)
+  );
+  const legend = document.getElementById('chartLegend');
+  legend.innerHTML = '';
+
+  order.forEach((pIdx, pos) => {
+    const color = PLAYER_COLORS[pos % PLAYER_COLORS.length];
+    const name  = (pIdx === STATE.slot) ? 'Вы' : STATE.names[pIdx];
+    datasets.push({
+      label: name,
+      data: hist.map(h => (h.hands[pIdx] || 0)),
+      borderColor: color,
+      backgroundColor: 'rgba(0,0,0,0)',
+      tension: .25, fill: false,
+      pointRadius: 2, borderWidth: 2,
+    });
+    legend.innerHTML += '<span><i style="background:' + color + '"></i>' + esc(name) + '</span>';
+  });
+
+  datasets.push({
+    label: 'Колода',
+    data: hist.map(h => h.deck),
+    borderColor: DECK_COLOR,
+    backgroundColor: 'rgba(0,0,0,0)',
+    tension: .25, fill: false, pointRadius: 2, borderWidth: 3,
+  });
+  legend.innerHTML += '<span><i style="background:' + DECK_COLOR + '"></i>Колода</span>';
+
+  const fingerprint = JSON.stringify({
+    labels,
+    series: datasets.map(d => d.data),
+    n: STATE.num_players, slot: STATE.slot,
+  });
+
+  if (!chart) {
+    const ctx = document.getElementById('chart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        resizeDelay: 500, devicePixelRatio: 1,
+        animation: false,
+        animations: { colors: false, x: false, y: false },
+        scales: {
+          x: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,.05)' } },
+          y: { beginAtZero: true, ticks: { color: '#aaa', precision: 0 },
+               grid: { color: 'rgba(255,255,255,.05)' } },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+    chart._fingerprint = fingerprint;
+    return;
+  }
+  if (chart._fingerprint === fingerprint) return;
+  chart._fingerprint = fingerprint;
+  chart.data.labels = labels;
+  chart.data.datasets = datasets;
+  chart.update('none');
+}
+
+refresh();
+startPolling();
+</script>
+</body>
+</html>
