@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HearthLite</title>
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1b2a4a 0%, #0a0f1c 70%);
+    color: #e6edf6;
+    min-height: 100vh;
+  }
+  h1, h2, h3 { margin: 0 0 10px; }
+  .hidden { display: none !important; }
+
+  #game { padding: 14px; max-width: 1500px; margin: 0 auto; }
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(20,30,50,0.7); padding: 10px 16px;
+    border-radius: 12px; border: 1px solid #2c3e5c; margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .topbar .title { color: #ffd166; font-weight: 700; letter-spacing: 1px; }
+  .topbar .spacer { flex: 1; }
+  .turn-indicator {
+    padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  }
+  .turn-mine { background: #1f6f3f; color: #c8ffdb; box-shadow: 0 0 14px #37d67a55; }
+  .turn-wait { background: #3a3a52; color: #cfd4e6; }
+
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 12px; }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+
+  .board {
+    background: rgba(20,30,50,0.55);
+    border: 1px solid #2c3e5c;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .zone {
+    background: rgba(0,0,0,0.25);
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 130px;
+  }
+  .zone.active {
+    box-shadow: inset 0 0 0 2px #37d67a77;
+    background: rgba(55,214,122,0.07);
+  }
+  .zone-header {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: #9db2d0; margin-bottom: 6px;
+  }
+  .hero-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 10px;
+    background: #14213a; border: 1px solid #33507a;
+    cursor: default;
+  }
+  .hero-chip.enemy-target { cursor: crosshair; }
+  .hero-chip.enemy-target:hover { border-color: #ff6666; box-shadow: 0 0 12px #ff666655; }
+  .hero-chip .avatar { font-size: 22px; }
+  .hero-chip .hp { color: #ff8080; font-weight: 700; }
+  .hero-chip .mana { color: #7fc7ff; font-weight: 700; }
+
+  .minions { display: flex; gap: 8px; flex-wrap: wrap; min-height: 104px; }
+  .minion {
+    width: 96px; height: 104px;
+    background: linear-gradient(180deg,#2a3a56,#1a2740);
+    border: 2px solid #3d5780;
+    border-radius: 10px;
+    padding: 6px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+    cursor: default;
+    user-select: none;
+    transition: transform .1s, box-shadow .15s, border-color .15s;
+  }
+  .minion.taunt { border-color: #b78738; box-shadow: 0 0 8px #b7873855 inset; }
+  .minion.ready { border-color: #4caf50; box-shadow: 0 0 10px #4caf5055; cursor: pointer; }
+  .minion.ready:hover { transform: translateY(-4px); }
+  .minion.target-valid { border-color: #ff5555; box-shadow: 0 0 14px #ff555599; cursor: crosshair; }
+  .minion.target-valid:hover { transform: translateY(-4px) scale(1.04); }
+  .minion.damaged .hp-val { color: #ffb0b0; }
+  .minion .emoji { font-size: 26px; text-align: center; }
+  .minion .m-name { font-size: 11px; text-align: center; color: #cfd8e8; line-height: 1.1; }
+  .minion .stats {
+    display: flex; justify-content: space-between;
+    font-size: 14px; font-weight: 700; padding: 0 4px;
+  }
+  .minion .atk-val { color: #ffc46b; }
+  .minion .hp-val { color: #7de08a; }
+  .minion .taunt-mark {
+    position: absolute; top: 2px; right: 4px; font-size: 11px; color: #b78738;
+  }
+  .empty-slot {
+    width: 96px; height: 104px; border: 2px dashed #2c3e5c;
+    border-radius: 10px; opacity: .35;
+  }
+
+  .hand {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    padding: 10px; background: rgba(20,30,50,0.55);
+    border: 1px solid #2c3e5c; border-radius: 12px;
+    min-height: 140px; margin-top: 10px;
+  }
+  .card {
+    width: 110px; height: 130px;
+    background: linear-gradient(180deg,#3a4a6a,#22304a);
+    border: 2px solid #4a6088;
+    border-radius: 10px;
+    padding: 6px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    cursor: pointer;
+    transition: transform .12s, box-shadow .15s, border-color .15s;
+    position: relative;
+  }
+  .card:hover { transform: translateY(-8px); }
+  .card.playable { border-color: #ffd166; box-shadow: 0 0 12px #ffd16644; }
+  .card.unplayable { opacity: .55; cursor: not-allowed; }
+  .card.unplayable:hover { transform: none; }
+  .card.selected {
+    border-color: #37d67a !important;
+    box-shadow: 0 0 20px #37d67aaa;
+    transform: translateY(-10px);
+  }
+  .card .cost {
+    position: absolute; top: -8px; left: -8px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #1d6fff; color: #fff; font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #0b3fa0;
+  }
+  .card .c-emoji { font-size: 30px; text-align: center; margin-top: 6px; }
+  .card .c-name { font-size: 11px; text-align: center; font-weight: 600; line-height: 1.1; }
+  .card .c-text { font-size: 10px; text-align: center; color: #b7c4da; line-height: 1.1; }
+  .card .c-stats {
+    display: flex; justify-content: space-between;
+    font-size: 15px; font-weight: 700; padding: 0 4px;
+  }
+  .card.spell { background: linear-gradient(180deg,#5a3a6a,#32204a); border-color: #7a5088; }
+
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .panel {
+    background: rgba(20,30,50,0.7); border: 1px solid #2c3e5c;
+    border-radius: 12px; padding: 12px;
+  }
+  .panel h3 { font-size: 14px; color: #9db2d0; letter-spacing: 1px; }
+  .log-list {
+    max-height: 260px; overflow-y: auto;
+    font-size: 12.5px; line-height: 1.45; color: #c8d3e6;
+    display: flex; flex-direction: column-reverse;
+  }
+  .log-list div { padding: 3px 0; border-bottom: 1px dashed #22304a; }
+  .chart-wrap { height: 220px; position: relative; }
+  .turn-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .turn-actions button { flex: 1; }
+
+  .targeting-banner {
+    background: #7a3030; border: 1px solid #ff7777;
+    color: #ffdede; padding: 8px 14px; border-radius: 10px;
+    margin-bottom: 10px; display: flex; align-items: center; gap: 10px;
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: #7a3030; color: #ffdede; padding: 12px 22px;
+    border-radius: 10px; border: 1px solid #ff7777;
+    z-index: 1000; box-shadow: 0 8px 30px rgba(0,0,0,.6);
+    font-weight: 600;
+  }
+
+  .winner-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 900; flex-direction: column; gap: 20px;
+    backdrop-filter: blur(6px);
+  }
+  .winner-overlay h1 { font-size: 48px; color: #ffd166; text-shadow: 0 0 30px #ffd16688; }
+
+  button {
+    cursor: pointer; border: none; border-radius: 8px;
+    padding: 10px 16px; font-size: 14px; font-weight: 600;
+    transition: transform .1s, filter .15s;
+  }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(180deg,#f0b429,#d48806); color:#1b1405; }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn-secondary { background: #2c3e5c; color: #e6edf6; }
+  .btn-secondary:hover:not(:disabled) { filter: brightness(1.15); }
+  .btn-danger { background: #a13a3a; color: #fff; }
+  .btn-danger:hover:not(:disabled) { filter: brightness(1.15); }
+  .code-badge {
+    display: inline-block; padding: 4px 10px;
+    background: #0e1626; border: 1px dashed #ffd166;
+    border-radius: 6px; color: #ffd166; font-family: monospace;
+    font-size: 16px; letter-spacing: 3px;
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div class="topbar">
+    <span class="title">⚔ HearthLite</span>
+    <span>Код: <span class="code-badge" id="roomCode">------</span></span>
+    <span class="spacer"></span>
+    <span id="turnLabel" class="turn-indicator turn-wait">Ожидание...</span>
+    <button class="btn-secondary" id="startBtn" style="display:none">Начать игру</button>
+    <button class="btn-danger" id="leaveBtn">Выйти</button>
+  </div>
+
+  <div id="targetingBanner" class="targeting-banner hidden">
+    <span id="targetingText">Выберите цель</span>
+    <button class="btn-secondary" id="cancelTargetBtn" style="margin-left:auto">Отмена</button>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="board" id="boardArea"></div>
+      <div class="hand" id="handArea"></div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <h3>📜 Журнал</h3>
+        <div class="log-list" id="logList"></div>
+      </div>
+      <div class="panel">
+        <h3>📈 История HP</h3>
+        <div class="chart-wrap"><canvas id="hpChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>⏱ Управление</h3>
+        <div class="turn-actions">
+          <button class="btn-primary" id="endTurnBtn" disabled>Завершить ход</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="winnerOverlay" class="winner-overlay hidden">
+  <h1 id="winnerText">🏆 Победа!</h1>
+  <button class="btn-primary" id="backToLobbyBtn">На главную</button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = null;
+  var playerId = null;
+  var pollTimer = null;
+  var chart = null;
+  var pendingCard = null;
+  var selectedAttacker = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    if (s === null || s === undefined) return "";
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function toast(msg, ms) {
+    var t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, ms || 2600);
+  }
+  function post(url, data) {
+    return fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      credentials: "same-origin",
+      body: JSON.stringify(data || {})
+    }).then(function (r) {
+      return r.json().then(function (j) { return {ok: r.ok, body: j}; });
+    });
+  }
+  function goHome() { window.location.href = "/"; }
+
+  // ---------- Кнопки ----------
+  $("leaveBtn").addEventListener("click", function () {
+    stopPolling();
+    post("/api/leave", {}).then(goHome).catch(goHome);
+  });
+  $("backToLobbyBtn").addEventListener("click", function () {
+    post("/api/leave", {}).then(goHome).catch(goHome);
+  });
+  $("startBtn").addEventListener("click", function () {
+    post("/hl/api/start", {}).then(function (res) {
+      if (!res.ok || !res.body.ok) { toast(res.body.error || "Ошибка"); return; }
+      applyState(res.body.state);
+    });
+  });
+  $("endTurnBtn").addEventListener("click", function () {
+    if (pendingCard || selectedAttacker) clearInteraction();
+    post("/hl/api/end_turn", {}).then(function (res) {
+      if (!res.ok || !res.body.ok) { toast(res.body.error || "Ошибка"); return; }
+      applyState(res.body.state);
+    });
+  });
+  $("cancelTargetBtn").addEventListener("click", clearInteraction);
+
+  // ---------- Опрос сервера ----------
+  function startPolling() {
+    stopPolling();
+    pollTimer = setInterval(pollState, 1500);
+  }
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+  function pollState() {
+    fetch("/hl/api/state", {credentials: "same-origin"})
+      .then(function (r) {
+        if (r.status === 404) { goHome(); return null; }
+        return r.json();
+      })
+      .then(function (res) {
+        if (res && res.ok && res.state) applyState(res.state);
+      })
+      .catch(function () {});
+  }
+
+  // ---------- Отрисовка ----------
+  function applyState(st) {
+    if (!st) return;
+    state = st;
+    playerId = st.me;
+    $("roomCode").textContent = st.game_id;
+
+    var myTurn = st.my_turn && !st.finished;
+    var turnLabel = $("turnLabel");
+    if (st.finished) {
+      turnLabel.textContent = "Игра завершена";
+      turnLabel.className = "turn-indicator turn-wait";
+    } else if (!st.started) {
+      turnLabel.textContent = "Ожидание игроков (" + st.players.length + "/" + st.max_players + ")";
+      turnLabel.className = "turn-indicator turn-wait";
+    } else if (myTurn) {
+      turnLabel.textContent = "🟢 Ваш ход";
+      turnLabel.className = "turn-indicator turn-mine";
+    } else {
+      var cur = st.players.filter(function (p) { return p.id === st.current; })[0];
+      turnLabel.textContent = "⏳ Ход: " + (cur ? cur.name : "...");
+      turnLabel.className = "turn-indicator turn-wait";
+    }
+
+    var startBtn = $("startBtn");
+    if (!st.started && st.is_host) {
+      startBtn.style.display = "";
+      startBtn.disabled = !st.can_start;
+      startBtn.textContent = st.can_start ? "Начать игру" : "Ждём игроков (" + st.players.length + "/2)";
+    } else {
+      startBtn.style.display = "none";
+    }
+
+    $("endTurnBtn").disabled = !myTurn;
+
+    renderBoard();
+    renderHand();
+    renderLog();
+    renderChart();
+
+    if (st.finished) {
+      var isWin = st.winner === playerId;
+      $("winnerText").textContent = st.winner
+        ? (isWin ? "🏆 Вы победили!" : "Победитель: " + (st.winner_name || "?"))
+        : "🤝 Ничья";
+      $("winnerOverlay").classList.remove("hidden");
+    } else {
+      $("winnerOverlay").classList.add("hidden");
+    }
+  }
+
+  function renderBoard() {
+    var area = $("boardArea");
+    area.innerHTML = "";
+
+    var me = state.players.filter(function (p) { return p.id === playerId; })[0];
+    var others = state.players.filter(function (p) { return p.id !== playerId; });
+
+    others.forEach(function (p) { area.appendChild(makeZone(p, true)); });
+    if (me) area.appendChild(makeZone(me, false));
+  }
+
+  function makeZone(p, isEnemy) {
+    var zone = document.createElement("div");
+    zone.className = "zone";
+    if (p.is_current && !state.finished) zone.classList.add("active");
+
+    var header = document.createElement("div");
+    header.className = "zone-header";
+
+    var hero = document.createElement("div");
+    hero.className = "hero-chip";
+    if (isEnemy && state.my_turn && !state.finished) hero.classList.add("enemy-target");
+    hero.innerHTML =
+      '<span class="avatar">' + (isEnemy ? "👹" : "🧙") + '</span>' +
+      '<span><b>' + esc(p.name) + '</b>' +
+      (p.is_me ? ' <i style="color:#9db2d0">(вы)</i>' : '') + '</span>' +
+      '<span class="hp">❤ ' + p.hp + '/' + p.max_hp + '</span>' +
+      (isEnemy ? '' : '<span class="mana">💧 ' + p.mana + '/' + p.max_mana + '</span>') +
+      '<span style="color:#9db2d0;font-size:11px">🃏 ' + p.hand_count + ' | 📚 ' + p.deck_count + '</span>';
+
+    hero.addEventListener("click", function () {
+      if (isEnemy && selectedAttacker && state.my_turn) {
+        doAttack(selectedAttacker, p.id, null);
+      }
+      if (pendingCard && isEnemy && pendingCard.card.target === "enemy") {
+        doPlayCard(pendingCard.index, {player: p.id, minion: null});
+      }
+      if (pendingCard && !isEnemy && p.is_me && pendingCard.card.target === "friendly") {
+        doPlayCard(pendingCard.index, {player: p.id, minion: null});
+      }
+    });
+
+    header.appendChild(hero);
+    if (!p.alive) {
+      var dead = document.createElement("span");
+      dead.textContent = "☠ выбыл";
+      dead.style.color = "#ff8080";
+      header.appendChild(dead);
+    }
+    zone.appendChild(header);
+
+    var minions = document.createElement("div");
+    minions.className = "minions";
+    p.board.forEach(function (m) {
+      minions.appendChild(makeMinionEl(m, p, isEnemy));
+    });
+    for (var i = p.board.length; i < 7; i++) {
+      var slot = document.createElement("div");
+      slot.className = "empty-slot";
+      minions.appendChild(slot);
+    }
+    zone.appendChild(minions);
+    return zone;
+  }
+
+  function makeMinionEl(m, owner, isEnemyOwner) {
+    var el = document.createElement("div");
+    el.className = "minion";
+    if (m.taunt) el.classList.add("taunt");
+    if (m.health < m.max_health) el.classList.add("damaged");
+
+    var canAttack = owner.is_me && m.can_attack && state.my_turn && m.attack > 0;
+    if (canAttack) el.classList.add("ready");
+
+    var isValidTarget = false;
+    if (isEnemyOwner && selectedAttacker) isValidTarget = true;
+    if (pendingCard && pendingCard.card.target === "enemy" && isEnemyOwner) isValidTarget = true;
+    if (pendingCard && pendingCard.card.target === "friendly_minion" && owner.is_me) isValidTarget = true;
+    if (isValidTarget) {
+      if (selectedAttacker && isEnemyOwner) {
+        var taunts = owner.board.filter(function (x) { return x.taunt; });
+        if (taunts.length && !m.taunt) isValidTarget = false;
+      }
+      if (isValidTarget) el.classList.add("target-valid");
+    }
+
+    el.innerHTML =
+      (m.taunt ? '<span class="taunt-mark">🛡</span>' : '') +
+      '<div class="emoji">' + esc(m.emoji || "❔") + '</div>' +
+      '<div class="m-name">' + esc(m.name) + '</div>' +
+      '<div class="stats">' +
+        '<span class="atk-val">' + m.attack + '</span>' +
+        '<span class="hp-val">' + m.health + '</span>' +
+      '</div>';
+
+    el.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+
+      if (selectedAttacker) {
+        if (isEnemyOwner) doAttack(selectedAttacker, owner.id, m.uid);
+        else clearInteraction();
+        return;
+      }
+
+      if (pendingCard) {
+        var t = pendingCard.card.target;
+        if (t === "enemy" && isEnemyOwner) {
+          doPlayCard(pendingCard.index, {player: owner.id, minion: m.uid});
+        } else if (t === "friendly_minion" && owner.is_me) {
+          doPlayCard(pendingCard.index, {player: owner.id, minion: m.uid});
+        } else if (t === "friendly" && owner.is_me) {
+          doPlayCard(pendingCard.index, {player: owner.id, minion: m.uid});
+        }
+        return;
+      }
+
+      if (owner.is_me && canAttack) {
+        selectedAttacker = m.uid;
+        renderBoard();
+      }
+    });
+
+    return el;
+  }
+
+  function renderHand() {
+    var area = $("handArea");
+    area.innerHTML = "";
+    var me = state.players.filter(function (p) { return p.id === playerId; })[0];
+    if (!me) return;
+
+    var hand = me.hand || [];
+    if (!hand.length) {
+      var empty = document.createElement("div");
+      empty.style.color = "#7b8fb0";
+      empty.style.alignSelf = "center";
+      empty.textContent = state.started ? "Рука пуста" : "Ожидание старта...";
+      area.appendChild(empty);
+      return;
+    }
+
+    hand.forEach(function (c) {
+      var el = document.createElement("div");
+      el.className = "card";
+      if (c.type === "spell") el.classList.add("spell");
+      if (c.playable && state.my_turn) el.classList.add("playable");
+      else el.classList.add("unplayable");
+      if (pendingCard && pendingCard.index === c.index) el.classList.add("selected");
+
+      var statsHtml;
+      if (c.type === "minion") {
+        statsHtml = '<div class="c-stats"><span class="atk-val">' + c.attack +
+                    '</span><span class="hp-val">' + c.health + '</span></div>';
+      } else {
+        statsHtml = '<div class="c-stats"><span></span><span style="font-size:11px;color:#d0b7ff">' +
+                    (c.target === "none" ? "AOE" : "цель") + '</span></div>';
+      }
+
+      el.innerHTML =
+        '<div class="cost">' + c.cost + '</div>' +
+        '<div class="c-emoji">' + esc(c.emoji || "❔") + '</div>' +
+        '<div class="c-name">' + esc(c.name) + '</div>' +
+        '<div class="c-text">' + esc(c.text || "") + '</div>' +
+        statsHtml;
+
+      el.addEventListener("click", function () {
+        if (!c.playable || !state.my_turn) {
+          if (!state.my_turn) toast("Сейчас не ваш ход");
+          else toast("Недостаточно маны");
+          return;
+        }
+        if (c.target && c.target !== "none") {
+          if (pendingCard && pendingCard.index === c.index) {
+            clearInteraction();
+          } else {
+            selectedAttacker = null;
+            pendingCard = {index: c.index, card: c};
+            showTargeting(c);
+          }
+        } else {
+          doPlayCard(c.index, null);
+        }
+      });
+
+      area.appendChild(el);
+    });
+  }
+
+  function showTargeting(card) {
+    var banner = $("targetingBanner");
+    var text = $("targetingText");
+    var map = {
+      "enemy": "Выберите цель противника (герой или существо)",
+      "friendly": "Выберите свою цель (герой или существо)",
+      "friendly_minion": "Выберите своё существо"
+    };
+    text.textContent = "🎯 " + (map[card.target] || "Выберите цель") + ": " + card.name;
+    banner.classList.remove("hidden");
+    renderBoard();
+  }
+
+  function clearInteraction() {
+    pendingCard = null;
+    selectedAttacker = null;
+    $("targetingBanner").classList.add("hidden");
+    renderBoard();
+    renderHand();
+  }
+
+  function renderLog() {
+    var list = $("logList");
+    list.innerHTML = "";
+    (state.log || []).forEach(function (l) {
+      var d = document.createElement("div");
+      d.textContent = l;
+      list.appendChild(d);
+    });
+  }
+
+  function renderChart() {
+    var canvas = $("hpChart");
+    if (!canvas) return;
+    var hist = state.history || [];
+    if (!hist.length) return;
+
+    var labels = hist.map(function (h) { return "Ход " + h.turn; });
+    var colors = ["#ff8b8b", "#7fc7ff", "#ffd166"];
+    var datasets = state.players.map(function (p, idx) {
+      return {
+        label: p.name,
+        data: hist.map(function (h) { return (h.hp && h.hp[p.id] !== undefined) ? h.hp[p.id] : 0; }),
+        borderColor: colors[idx % colors.length],
+        backgroundColor: colors[idx % colors.length] + "33",
+        tension: 0.25,
+        fill: false,
+        pointRadius: 3
+      };
+    });
+
+    if (chart) {
+      chart.data.labels = labels;
+      chart.data.datasets = datasets;
+      chart.update("none");
+      return;
+    }
+
+    chart = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {labels: labels, datasets: datasets},
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { labels: { color: "#cfd8e8", boxWidth: 12, font: { size: 11 } } }
+        },
+        scales: {
+          x: { ticks: { color: "#7b8fb0", maxTicksLimit: 8, font: { size: 10 } },
+               grid: { color: "#22304a" } },
+          y: { beginAtZero: true, ticks: { color: "#7b8fb0", font: { size: 10 } },
+               grid: { color: "#22304a" } }
+        }
+      }
+    });
+  }
+
+  function doPlayCard(index, target) {
+    post("/hl/api/play_card", {index: index, target: target}).then(function (res) {
+      if (!res.ok || !res.body.ok) { toast(res.body.error || "Ошибка"); return; }
+      clearInteraction();
+      applyState(res.body.state);
+    });
+  }
+
+  function goHome() {
+    fetch('/api/leave', { method: 'POST', credentials: 'same-origin' })
+      .catch(function () {})
+      .then(function () { window.location.href = '/'; });
+  }
+
+  function doAttack(attackerUid, targetPlayerId, targetMinionUid) {
+    post("/hl/api/attack", {
+      attacker: attackerUid,
+      target_player: targetPlayerId,
+      target_minion: targetMinionUid
+    }).then(function (res) {
+      if (!res.ok || !res.body.ok) { toast(res.body.error || "Ошибка"); return; }
+      clearInteraction();
+      applyState(res.body.state);
+    });
+  }
+
+  document.addEventListener("click", function (ev) {
+    if (!state) return;
+    if (ev.target.closest(".minion")) return;
+    if (ev.target.closest(".card")) return;
+    if (ev.target.closest(".hero-chip")) return;
+    if (ev.target.closest("#targetingBanner")) return;
+    if (pendingCard || selectedAttacker) clearInteraction();
+  });
+
+  // -------- Старт --------
+  pollState();
+  startPolling();
+})();
+</script>
+</body>
+</html>
