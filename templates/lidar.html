@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIDAR</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 12px;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #0c1c2e 0%, #050a12 70%);
+    color: #d0e8f0; min-height: 100vh;
+  }
+  h1 { margin: 0; font-size: 20px; color: #4df0d0; letter-spacing: 2px; }
+  .hidden { display: none !important; }
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(10,25,40,0.7); border: 1px solid #1a3a55;
+    border-radius: 10px; padding: 10px 16px; margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .topbar .spacer { flex: 1; }
+  .code-badge {
+    padding: 4px 10px; background: #061725;
+    border: 1px dashed #4df0d0; border-radius: 6px;
+    color: #4df0d0; font-family: monospace; letter-spacing: 3px;
+  }
+  .phase-badge {
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+  }
+  .phase-lobby  { background: #26405c; }
+  .phase-battle { background: #7a2020; }
+  .phase-over   { background: #1e5c30; }
+
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 12px; max-width: 1400px; margin: 0 auto;
+  }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: rgba(10,25,40,0.7); border: 1px solid #1a3a55;
+    border-radius: 10px; padding: 12px; margin-bottom: 12px;
+  }
+  .panel h3 {
+    margin: 0 0 8px; font-size: 12px; color: #4df0d0;
+    text-transform: uppercase; letter-spacing: 1.2px;
+  }
+  .canvas-wrap {
+    background: rgba(0,0,0,0.4); border: 1px solid #1a3a55;
+    border-radius: 10px; padding: 8px; display: flex; justify-content: center;
+  }
+  canvas {
+    display: block; max-width: 100%; height: auto;
+    background: #050d15; border-radius: 6px;
+  }
+
+  .cooldowns {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px; margin-top: 8px;
+  }
+  .cd-box {
+    padding: 6px 8px; background: #0d2033; border-radius: 6px;
+    text-align: center; font-size: 11px; color: #8fb0c8;
+  }
+  .cd-box .val { font-weight: 700; font-size: 15px; color: #6a8fa8; }
+  .cd-box.ready .val { color: #4df0d0; }
+  .cd-box.cool  .val { color: #ff9060; }
+
+  .modes { display: flex; gap: 6px; margin-bottom: 8px; }
+  .modes button {
+    flex: 1; padding: 10px 8px; background: #12263a;
+    border: 2px solid #1a3a55; border-radius: 8px;
+    color: #d0e8f0; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .modes button.active { border-color: #4df0d0; color: #4df0d0; }
+  .modes button:hover:not(.active) { background: #1a3048; }
+
+  .compass-wrap { display: flex; justify-content: center; margin-top: 8px; }
+  .compass {
+    display: grid;
+    grid-template-columns: repeat(3, 60px);
+    grid-template-rows: repeat(3, 60px);
+    gap: 4px;
+  }
+  .compass button {
+    padding: 0; background: #12263a; border: 2px solid #1a3a55;
+    border-radius: 8px; color: #d0e8f0; font-size: 22px;
+    cursor: pointer; transition: all 0.1s;
+  }
+  .compass button:hover:not(:disabled) { background: #1e4a66; border-color: #4df0d0; }
+  .compass button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .compass .center {
+    background: #061725; border-style: dashed;
+    font-size: 12px; color: #4df0d0;
+  }
+
+  .players-list { list-style: none; padding: 0; margin: 0; }
+  .players-list li {
+    padding: 8px 10px; background: rgba(0,0,0,0.25);
+    border-radius: 6px; margin-bottom: 6px; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px;
+  }
+  .players-list li.me { background: rgba(77,240,208,0.08); border: 1px solid rgba(77,240,208,0.3); }
+  .players-list li.dead { opacity: 0.45; }
+  .hp-bar {
+    flex: 1; height: 8px; background: #1a3040; border-radius: 4px;
+    overflow: hidden; max-width: 100px;
+  }
+  .hp-bar > div {
+    height: 100%; background: linear-gradient(90deg, #ff4040, #ff8080);
+    transition: width 0.3s;
+  }
+
+  .log {
+    max-height: 220px; overflow-y: auto; font-size: 12px;
+    line-height: 1.5; color: #8fb0c8;
+  }
+  .log div { padding: 2px 0; border-bottom: 1px dashed #12263a; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 20px; z-index: 100;
+  }
+  .overlay h2 {
+    color: #4df0d0; font-size: 36px; margin: 0;
+    text-shadow: 0 0 20px #4df0d080;
+  }
+
+  button.btn-primary {
+    padding: 10px 24px;
+    background: linear-gradient(180deg, #4df0d0, #1eb8a0);
+    color: #04141c; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  button.btn-secondary {
+    padding: 8px 16px; background: #26405c; color: #d0e8f0;
+    border: none; border-radius: 8px; font-size: 13px; cursor: pointer;
+  }
+  button.btn-danger {
+    padding: 8px 16px; background: #6a2020; color: #ffdede;
+    border: none; border-radius: 8px; font-size: 13px; cursor: pointer;
+  }
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: #7a2020; color: #ffdede; padding: 10px 20px;
+    border-radius: 8px; border: 1px solid #ff6060;
+    z-index: 200; font-weight: 600;
+  }
+  .hint { font-size: 11px; color: #6a8fa8; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>📡 LIDAR</h1>
+  <span>Код: <span class="code-badge" id="roomCode">------</span></span>
+  <span class="phase-badge phase-lobby" id="phaseBadge">Лобби</span>
+  <span class="spacer"></span>
+  <span id="turnInfo" style="font-size:13px;"></span>
+  <button class="btn-secondary" id="startBtn" style="display:none;">Начать</button>
+  <button class="btn-secondary" id="resetBtn" style="display:none;">Заново</button>
+  <button class="btn-danger" id="leaveBtn">Выйти</button>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="canvas-wrap">
+      <canvas id="board" width="600" height="600"></canvas>
+    </div>
+
+    <div class="panel">
+      <h3>Действия</h3>
+      <div class="modes" id="modes">
+        <button data-mode="move" class="active">🚶 Идти</button>
+        <button data-mode="lidar">📡 Скан (конус)</button>
+        <button data-mode="rocket">🚀 Ракета</button>
+      </div>
+      <div class="compass-wrap">
+        <div class="compass" id="compass">
+          <button data-dir="NW">↖</button>
+          <button data-dir="N">↑</button>
+          <button data-dir="NE">↗</button>
+          <button data-dir="W">←</button>
+          <button class="center" disabled>●</button>
+          <button data-dir="E">→</button>
+          <button data-dir="SW">↙</button>
+          <button data-dir="S">↓</button>
+          <button data-dir="SE">↘</button>
+        </div>
+      </div>
+      <div class="cooldowns">
+        <div class="cd-box" data-cd="move">
+          <div class="val" id="cdMove">0.0</div><div>движение</div>
+        </div>
+        <div class="cd-box" data-cd="lidar">
+          <div class="val" id="cdLidar">0.0</div><div>сканер</div>
+        </div>
+        <div class="cd-box" data-cd="rocket">
+          <div class="val" id="cdRocket">0.0</div><div>ракета</div>
+        </div>
+      </div>
+      <div class="hint">
+        WASD / стрелки — движение (удерживайте). Q — сменить режим.
+        Цифры 1–9 (кроме 5) — выстрел/скан в выбранном режиме.
+        📡 Скан идёт конусом 45° на 10 клеток и показывает <b>объекты</b> —
+        это могут быть как игроки, так и мусор.
+        🚀 Ракета летит по линии и поражает первый объект на пути.
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h3>Игроки</h3>
+      <ul class="players-list" id="playersList"></ul>
+    </div>
+    <div class="panel">
+      <h3>Обнаруженные объекты (🟠) и игроки</h3>
+      <div class="log" id="detectedList" style="max-height:130px;"></div>
+    </div>
+    <div class="panel">
+      <h3>Журнал</h3>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay" class="overlay hidden">
+  <h2 id="overlayText"></h2>
+  <button class="btn-primary" id="overlayBtn">На главную</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const BOARD = 20;
+  const CELL = 30;
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+
+  let state = null;
+  let receivedAt = performance.now();
+  let mode = 'move';
+  let pollBusy = false;
+  const heldKeys = new Set();
+
+  const $ = id => document.getElementById(id);
+  function toast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2000);
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function goHome() {
+    fetch('/api/leave', {method: 'POST', credentials: 'same-origin'})
+      .catch(() => {})
+      .then(() => { window.location.href = '/'; });
+  }
+
+  async function api(path, body) {
+    const r = await fetch(path, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      credentials: 'same-origin',
+      body: JSON.stringify(body || {}),
+    });
+    let j = {};
+    try { j = await r.json(); } catch (e) {}
+    return { ok: r.ok, status: r.status, body: j };
+  }
+
+  async function poll() {
+    if (pollBusy) return;
+    pollBusy = true;
+    try {
+      const r = await fetch('/ld/api/state', {credentials: 'same-origin'});
+      if (r.status === 404) { goHome(); return; }
+      const j = await r.json();
+      if (!j.ok) { goHome(); return; }
+      applyState(j.state);
+    } catch (e) {} finally {
+      pollBusy = false;
+    }
+  }
+
+  function applyState(st) {
+    state = st;
+    receivedAt = performance.now();
+    renderUI();
+    renderCanvas();
+  }
+
+  // ---------- UI ----------
+  function renderUI() {
+    if (!state) return;
+    $('roomCode').textContent = state.game_id || '------';
+    const badge = $('phaseBadge');
+    const names = { lobby: 'Лобби', battle: 'Бой', over: 'Игра окончена' };
+    badge.textContent = names[state.phase] || state.phase;
+    badge.className = 'phase-badge phase-' + state.phase;
+
+    const list = $('playersList');
+    list.innerHTML = '';
+    (state.players || []).forEach(p => {
+      const li = document.createElement('li');
+      if (p.is_me) li.classList.add('me');
+      if (!p.alive) li.classList.add('dead');
+      const hpPct = Math.max(0, (p.hp / p.max_hp) * 100);
+      li.innerHTML =
+        '<span>' + escapeHtml(p.name) + (p.is_me ? ' (вы)' : '') +
+        ' <span style="color:#6a8fa8;font-size:11px;">🏆 ' + p.kills + '</span></span>' +
+        '<div class="hp-bar"><div style="width:' + hpPct + '%"></div></div>' +
+        '<span style="font-size:11px;color:#8fb0c8;">' + p.hp + '</span>';
+      list.appendChild(li);
+    });
+
+    // список обнаруженных объектов
+    const det = $('detectedList');
+    const kn = (state.known || []).slice().sort((a, b) => a.age - b.age);
+    if (!kn.length) {
+      det.innerHTML = '<div style="color:#6a8fa8;">— нечего показывать, просканируйте —</div>';
+    } else {
+      det.innerHTML = kn.map(k =>
+        '<div>🟠 объект (' + k.x + ',' + k.y + ') · ' + k.age.toFixed(0) + 'с назад</div>'
+      ).join('');
+    }
+
+    const startBtn = $('startBtn');
+    if (state.phase === 'lobby' && state.i_am_host) {
+      startBtn.style.display = '';
+      startBtn.disabled = !state.can_start;
+      startBtn.textContent = state.can_start ? 'Начать' : 'Нужно ≥2';
+    } else {
+      startBtn.style.display = 'none';
+    }
+
+    $('resetBtn').style.display = state.phase === 'over' ? '' : 'none';
+
+    const ti = $('turnInfo');
+    if (state.phase === 'lobby') {
+      const n = state.players.filter(p => p.occupied).length;
+      ti.textContent = 'Игроков: ' + n + '/' + state.max_players;
+    } else if (state.phase === 'over') {
+      if (state.winner === state.slot) ti.textContent = '🏆 Вы победили!';
+      else if (state.winner !== null && state.winner !== undefined)
+        ti.textContent = 'Победитель: ' + state.players[state.winner].name;
+      else ti.textContent = 'Ничья';
+    } else {
+      ti.textContent = '';
+    }
+
+    const dead = state.phase === 'battle' &&
+                 state.players[state.slot] &&
+                 !state.players[state.slot].alive;
+    const disabled = state.phase !== 'battle' || dead;
+    document.querySelectorAll('#compass button[data-dir]').forEach(b => {
+      b.disabled = disabled;
+    });
+    document.querySelectorAll('#modes button').forEach(b => {
+      b.disabled = disabled;
+    });
+
+    const logEl = $('log');
+    logEl.innerHTML = (state.log || [])
+      .map(l => '<div>' + escapeHtml(l) + '</div>').join('');
+    logEl.scrollTop = logEl.scrollHeight;
+
+    const ov = $('overlay');
+    if (state.phase === 'over') {
+      ov.classList.remove('hidden');
+      const isWin = state.winner === state.slot;
+      $('overlayText').textContent =
+        isWin ? '🏆 Победа!' :
+        (state.winner === null || state.winner === undefined ? '🤝 Ничья' : '💀 Поражение');
+    } else {
+      ov.classList.add('hidden');
+    }
+
+    updateCdDisplay();
+  }
+
+  function updateCdDisplay() {
+    if (!state || !state.cooldowns) return;
+    const dt = (performance.now() - receivedAt) / 1000;
+    const cd = state.cooldowns;
+    [['move','cdMove'], ['lidar','cdLidar'], ['rocket','cdRocket']].forEach(([k, id]) => {
+      const v = Math.max(0, (cd[k] || 0) - dt);
+      const el = $(id);
+      el.textContent = v.toFixed(1);
+      const box = el.parentElement;
+      box.classList.toggle('ready', v <= 0.001);
+      box.classList.toggle('cool', v > 0.001);
+    });
+  }
+
+  // ---------- canvas ----------
+  function renderCanvas() {
+    ctx.fillStyle = '#050d15';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (!state) return;
+    const dt = (performance.now() - receivedAt) / 1000;
+
+    // сетка
+    ctx.strokeStyle = 'rgba(30,70,100,0.5)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= BOARD; i++) {
+      ctx.beginPath(); ctx.moveTo(i * CELL, 0);
+      ctx.lineTo(i * CELL, BOARD * CELL); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * CELL);
+      ctx.lineTo(BOARD * CELL, i * CELL); ctx.stroke();
+    }
+
+    // события
+    (state.events || []).forEach(ev => {
+      const age = (ev.age || 0) + dt;
+      const maxAge = ev.type === 'lidar' ? 2.2 : 1.4;
+      const alpha = Math.max(0, 1 - age / maxAge);
+      if (alpha <= 0) return;
+
+      if (ev.type === 'lidar' && ev.from) {
+        const ox = (ev.from[0] + 0.5) * CELL;
+        const oy = (ev.from[1] + 0.5) * CELL;
+        const baseAngle = Math.atan2(ev.dir[1], ev.dir[0]);
+        const half = (ev.half_angle_deg || 22.5) * Math.PI / 180;
+        const rangePx = (ev.range || 10) * CELL;
+
+        // заливка конуса
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.arc(ox, oy, rangePx, baseAngle - half, baseAngle + half);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(77,240,208,' + (0.14 * alpha) + ')';
+        ctx.fill();
+        // контур
+        ctx.strokeStyle = 'rgba(77,240,208,' + (0.6 * alpha) + ')';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // метки внутри конуса
+        (ev.targets || []).forEach(t => {
+          const cx = (t.x + 0.5) * CELL, cy = (t.y + 0.5) * CELL;
+          ctx.strokeStyle = 'rgba(255,255,255,' + (0.85 * alpha) + ')';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(cx, cy, CELL * (0.3 + 0.15 * (1 - alpha)), 0, Math.PI * 2);
+          ctx.stroke();
+        });
+      } else if (ev.type === 'rocket' && ev.from && ev.to) {
+        ctx.strokeStyle = 'rgba(255,150,60,' + alpha + ')';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo((ev.from[0] + 0.5) * CELL, (ev.from[1] + 0.5) * CELL);
+        ctx.lineTo((ev.to[0] + 0.5) * CELL, (ev.to[1] + 0.5) * CELL);
+        ctx.stroke();
+        if (ev.hit) {
+          ctx.fillStyle = 'rgba(255,200,80,' + (alpha * 0.5) + ')';
+          ctx.beginPath();
+          ctx.arc((ev.to[0] + 0.5) * CELL, (ev.to[1] + 0.5) * CELL,
+                  12 * alpha, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (ev.type === 'decoy_broken' && ev.at) {
+        ctx.strokeStyle = 'rgba(180,180,180,' + alpha + ')';
+        ctx.lineWidth = 2;
+        const cx = (ev.at[0] + 0.5) * CELL, cy = (ev.at[1] + 0.5) * CELL;
+        const r = 6 + 14 * (1 - alpha);
+        for (let k = 0; k < 6; k++) {
+          const a = k * Math.PI / 3;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(a) * 4, cy + Math.sin(a) * 4);
+          ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+          ctx.stroke();
+        }
+      } else if (ev.type === 'hit' && ev.at) {
+        ctx.strokeStyle = 'rgba(255,60,60,' + alpha + ')';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc((ev.at[0] + 0.5) * CELL, (ev.at[1] + 0.5) * CELL,
+                12 + 12 * (1 - alpha), 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (ev.type === 'death' && ev.at) {
+        ctx.strokeStyle = 'rgba(255,120,120,' + alpha + ')';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc((ev.at[0] + 0.5) * CELL, (ev.at[1] + 0.5) * CELL,
+                6 + 22 * (1 - alpha), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    });
+
+    // обнаруженные объекты (игрок или мусор — одинаково!)
+    (state.known || []).forEach(k => {
+      const fade = Math.max(0.35, 1 - k.age / 25);
+      const cx = (k.x + 0.5) * CELL, cy = (k.y + 0.5) * CELL;
+      ctx.fillStyle = 'rgba(220,230,240,' + (0.55 * fade) + ')';
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.9 * fade) + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, CELL * 0.35, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(200,215,230,' + (0.9 * fade) + ')';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(k.age.toFixed(0) + 's', cx, cy - CELL * 0.55);
+      ctx.textAlign = 'start';
+    });
+
+    // если конец игры — раскрываем всё
+    if (state.phase === 'over') {
+      (state.decoys || []).forEach(d => {
+        if (!d.alive) return;
+        const cx = (d.x + 0.5) * CELL, cy = (d.y + 0.5) * CELL;
+        ctx.fillStyle = 'rgba(120,140,160,0.7)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, CELL * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      state.players.forEach(p => {
+        if (p.x === undefined || p.x === null) return;
+        const cx = (p.x + 0.5) * CELL, cy = (p.y + 0.5) * CELL;
+        ctx.fillStyle = p.alive ? '#4df0d0' : 'rgba(120,60,60,0.8)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, CELL * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#cfe';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name, cx, cy - CELL * 0.5);
+        ctx.textAlign = 'start';
+      });
+    }
+
+    // я
+    if (state.my_position) {
+      const mx = (state.my_position.x + 0.5) * CELL;
+      const my = (state.my_position.y + 0.5) * CELL;
+      const grad = ctx.createRadialGradient(mx, my, 2, mx, my, CELL);
+      grad.addColorStop(0, 'rgba(77,240,208,0.9)');
+      grad.addColorStop(1, 'rgba(77,240,208,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(mx, my, CELL, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#4df0d0';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(mx, my, CELL * 0.35, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+
+    // умер?
+    const me = state.players && state.players[state.slot];
+    if (state.phase === 'battle' && me && !me.alive) {
+      ctx.fillStyle = 'rgba(120,0,0,0.25)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ff6060';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('ВЫ ВЫБЫЛИ', canvas.width / 2, canvas.height / 2);
+      ctx.textAlign = 'start';
+    }
+  }
+
+  // ---------- действия ----------
+  async function sendAction(kind, dir) {
+    if (!state || state.phase !== 'battle') return;
+    const r = await api('/ld/api/' + kind, {dir});
+    if (!r.ok) {
+      if (r.status !== 400) toast(r.body.error || 'Ошибка');
+      return;
+    }
+    applyState(r.body.state);
+  }
+
+  document.querySelectorAll('#modes button').forEach(b => {
+    b.addEventListener('click', () => {
+      mode = b.dataset.mode;
+      document.querySelectorAll('#modes button').forEach(x =>
+        x.classList.toggle('active', x === b));
+    });
+  });
+  document.querySelectorAll('#compass button[data-dir]').forEach(b => {
+    b.addEventListener('click', () => sendAction(mode, b.dataset.dir));
+  });
+
+  $('leaveBtn').addEventListener('click', goHome);
+  $('overlayBtn').addEventListener('click', goHome);
+
+  $('startBtn').addEventListener('click', async () => {
+    const r = await api('/ld/api/start', {});
+    if (!r.ok) { toast(r.body.error || 'Ошибка'); return; }
+    await poll();
+  });
+  $('resetBtn').addEventListener('click', async () => {
+    const r = await api('/ld/api/reset', {});
+    if (!r.ok) { toast(r.body.error || 'Ошибка'); return; }
+    await poll();
+  });
+
+  // ---------- клавиатура ----------
+  const NUM_DIRS = {
+    '7': 'NW', '8': 'N', '9': 'NE',
+    '4': 'W',  '6': 'E',
+    '1': 'SW', '2': 'S', '3': 'SE',
+  };
+  document.addEventListener('keydown', e => {
+    if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+    const k = e.key.toLowerCase();
+    heldKeys.add(k);
+    if (k === 'q') {
+      const order = ['move', 'lidar', 'rocket'];
+      mode = order[(order.indexOf(mode) + 1) % 3];
+      document.querySelectorAll('#modes button').forEach(x =>
+        x.classList.toggle('active', x.dataset.mode === mode));
+      return;
+    }
+    if (NUM_DIRS[k]) sendAction(mode, NUM_DIRS[k]);
+  });
+  document.addEventListener('keyup', e => {
+    heldKeys.delete(e.key.toLowerCase());
+  });
+
+  function currentMoveDir() {
+    let dx = 0, dy = 0;
+    if (heldKeys.has('w') || heldKeys.has('arrowup')) dy -= 1;
+    if (heldKeys.has('s') || heldKeys.has('arrowdown')) dy += 1;
+    if (heldKeys.has('a') || heldKeys.has('arrowleft')) dx -= 1;
+    if (heldKeys.has('d') || heldKeys.has('arrowright')) dx += 1;
+    return {
+      '0,-1': 'N', '1,-1': 'NE', '1,0': 'E', '1,1': 'SE',
+      '0,1': 'S', '-1,1': 'SW', '-1,0': 'W', '-1,-1': 'NW',
+    }[dx + ',' + dy] || null;
+  }
+
+  // авто-движение по удержанию
+  setInterval(() => {
+    if (!state || state.phase !== 'battle') return;
+    if (mode !== 'move') return;
+    const dt = (performance.now() - receivedAt) / 1000;
+    if ((state.cooldowns.move || 0) - dt > 0.03) return;
+    const d = currentMoveDir();
+    if (!d) return;
+    sendAction('move', d);
+  }, 100);
+
+  // ---------- анимация ----------
+  function frame() {
+    if (state) {
+      renderCanvas();
+      updateCdDisplay();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- старт ----------
+  poll();
+  setInterval(poll, 400);
+  frame();
+})();
+</script>
+</body>
+</html>
