@@ -1,15 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Единый игровой портал: HearthLite, Морской бой, Дурак.
-"""
+"""Единый игровой портал с автообнаружением игр."""
+import inspect
 import os
-import random
 
 from flask import Flask, jsonify, render_template, request, session, redirect
 
-from games import hearthlite as hl
-from games import battleship as bs
-from games import durak as dk
+from games import registry
 
 
 app = Flask(__name__)
@@ -23,14 +19,45 @@ except AttributeError:
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 
-# === ЭТОГО НЕ ХВАТАЛО ===
-app.register_blueprint(hl.bp)   # /hl/api/...
-app.register_blueprint(bs.bp)   # /bs/api/...
-app.register_blueprint(dk.bp)   # /dk/api/...
-# ========================
+# === вот и вся интеграция ===
+registry.autodiscover()
+registry.register_blueprints(app)
+# ============================
 
-def _set_session(game_type, code, token, name):
-    session['game_type'] = game_type
+
+def _safe_call(fn, *args, **kwargs):
+    """Вызывает fn, отбрасывая kwargs, которых нет в её сигнатуре."""
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return fn(*args, **kwargs)
+    if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return fn(*args, **kwargs)
+    filtered = {k: v for k, v in kwargs.items() if k in params}
+    return fn(*args, **filtered)
+
+
+def _entry_for_session():
+    gt = session.get('game_type')
+    code = session.get('code')
+    tok = session.get('player_token')
+    if not gt or not code or not tok:
+        return None
+    entry = registry.get(gt)
+    if entry is None:
+        return None
+    has = getattr(entry['module'], 'has_player', None)
+    if has is None:
+        return entry
+    try:
+        ok = has(code, tok)
+    except Exception:
+        ok = False
+    return entry if ok else None
+
+
+def _set_session(gt, code, token, name):
+    session['game_type'] = gt
     session['code'] = code
     session['player_token'] = token
     session['name'] = name
@@ -41,58 +68,66 @@ def index():
     return render_template('index.html')
 
 
-def _session_valid(gt, code, tok):
-    if not gt or not code or not tok:
-        return False
-    if gt == 'hl':
-        return hl.has_player(code, tok)
-    if gt == 'bs':
-        return bs.has_player(code, tok)
-    if gt == 'dk':
-        return dk.has_player(code, tok)
-    return False
-
-
 @app.route('/play')
 def play():
-    gt = session.get('game_type')
-    code = session.get('code')
-    tok = session.get('player_token')
-    if not _session_valid(gt, code, tok):
+    entry = _entry_for_session()
+    if entry is None:
         session.clear()
         return redirect('/')
-    if gt == 'hl':
-        return render_template('hearthlite.html')
-    if gt == 'bs':
-        return render_template('battleship.html')
-    if gt == 'dk':
-        return render_template('durak.html')
-    return redirect('/')
+    return render_template(entry['meta']['template'])
+
+
+@app.route('/api/games')
+def api_games():
+    """Список игр для лендинга."""
+    out = []
+    for e in registry.all_games():
+        m = e['meta']
+        out.append({
+            'code': m['code'],
+            'prefix': m.get('prefix', m['code'].upper()),
+            'name': m['name'],
+            'players': m.get('players', '2'),
+            'modes': m.get('modes', []),
+            'extra_options': m.get('extra_options', []),
+        })
+    return jsonify({'ok': True, 'games': out})
 
 
 @app.route('/api/create', methods=['POST'])
 def api_create():
     data = request.get_json(silent=True) or {}
-    game_type = (data.get('game_type') or '').lower()
-    name = (data.get('name') or '').strip()[:16] or 'Игрок'
-    try:
-        mode = int(data.get('mode') or 2)
-    except (TypeError, ValueError):
-        mode = 2
-
-    if game_type == 'hl':
-        code, token, err = hl.create_game(name)
-    elif game_type == 'bs':
-        code, token, err = bs.create_game(name)
-    elif game_type == 'dk':
-        code, token, err = dk.create_game(name, mode)
-    else:
+    gt = (data.get('game_type') or '').lower()
+    entry = registry.get(gt)
+    if entry is None:
         return jsonify({'ok': False, 'error': 'Неизвестный тип игры'}), 400
+
+    name = (data.get('name') or '').strip()[:16] or 'Игрок'
+    m = entry['meta']
+    opts = {}
+
+    if m.get('modes'):
+        try:
+            mode = int(data.get('mode') or m['modes'][0])
+        except (TypeError, ValueError):
+            mode = m['modes'][0]
+        if mode not in m['modes']:
+            mode = m['modes'][0]
+        opts['mode'] = mode
+
+    for k in m.get('extra_options', []):
+        if k in data and data[k] is not None:
+            opts[k] = data[k]
+
+    try:
+        code, token, err = _safe_call(entry['module'].create_game, name, **opts)
+    except Exception as e:
+        return jsonify({'ok': False, 'error': 'Ошибка создания: %s' % e}), 500
 
     if err:
         return jsonify({'ok': False, 'error': err}), 400
 
-    _set_session(game_type, code, token, name)
+    _set_session(gt, code, token, name)
     return jsonify({'ok': True, 'code': code, 'redirect': '/play'})
 
 
@@ -103,36 +138,40 @@ def api_join():
     name = (data.get('name') or '').strip()[:16] or 'Игрок'
 
     if '-' not in code:
-        return jsonify({'ok': False, 'error': 'Неверный формат кода (нужно XX-XXXX)'}), 400
+        return jsonify({'ok': False, 'error': 'Неверный формат кода (XX-XXXX)'}), 400
 
     prefix = code.split('-', 1)[0]
-    if prefix == 'HL':
-        game_type, token, err = 'hl', *hl.join_game(code, name)
-    elif prefix == 'BS':
-        game_type, token, err = 'bs', *bs.join_game(code, name)
-    elif prefix == 'DK':
-        game_type, token, err = 'dk', *dk.join_game(code, name)
-    else:
+    entry = registry.get_by_prefix(prefix)
+    if entry is None:
         return jsonify({'ok': False, 'error': 'Неизвестный тип игры'}), 400
+
+    m = entry['meta']
+    opts = {}
+    for k in m.get('extra_options', []):
+        if k in data and data[k] is not None:
+            opts[k] = data[k]
+
+    try:
+        token, err = _safe_call(entry['module'].join_game, code, name, **opts)
+    except Exception as e:
+        return jsonify({'ok': False, 'error': 'Ошибка подключения: %s' % e}), 500
 
     if err:
         return jsonify({'ok': False, 'error': err}), 400
 
-    _set_session(game_type, code, token, name)
+    _set_session(m['code'], code, token, name)
     return jsonify({'ok': True, 'code': code, 'redirect': '/play'})
 
 
 @app.route('/api/whoami')
 def api_whoami():
-    gt = session.get('game_type')
-    code = session.get('code')
-    tok = session.get('player_token')
-    if not _session_valid(gt, code, tok):
+    entry = _entry_for_session()
+    if entry is None:
         session.clear()
         return jsonify({'game_type': None})
     return jsonify({
-        'game_type': gt,
-        'code': code,
+        'game_type': session.get('game_type'),
+        'code': session.get('code'),
         'name': session.get('name'),
     })
 
@@ -142,12 +181,14 @@ def api_leave():
     gt = session.get('game_type')
     code = session.get('code')
     tok = session.get('player_token')
-    if gt == 'hl':
-        hl.leave(code, tok)
-    elif gt == 'bs':
-        bs.leave(code, tok)
-    elif gt == 'dk':
-        dk.leave(code, tok)
+    entry = registry.get(gt) if gt else None
+    if entry is not None:
+        leave_fn = getattr(entry['module'], 'leave', None)
+        if leave_fn is not None:
+            try:
+                leave_fn(code, tok)
+            except Exception:
+                pass
     session.clear()
     return jsonify({'ok': True})
 
