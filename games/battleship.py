@@ -9,6 +9,11 @@ from flask import Blueprint, jsonify, request, session
 
 bp = Blueprint('battleship', __name__, url_prefix='/bs')
 
+GAME_META = {
+    'code': 'bs', 'prefix': 'BS', 'name': 'Морской бой',
+    'players': '2-3', 'template': 'battleship.html', 'order': 20,
+}
+
 BOARD_SIZE = 10
 FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
 MIN_PLAYERS = 2
