@@ -8,6 +8,12 @@ from flask import Blueprint, jsonify, request, session
 
 bp = Blueprint('durak', __name__, url_prefix='/dk')
 
+GAME_META = {
+    'code': 'dk', 'prefix': 'DK', 'name': 'Дурак',
+    'players': '2-3', 'template': 'durak.html',
+    'modes': [2, 3], 'order': 30,
+}
+
 SUITS = ['\u2660', '\u2665', '\u2666', '\u2663']
 SUIT_NAMES = {'\u2660': 'пики', '\u2665': 'черви', '\u2666': 'бубны', '\u2663': 'трефы'}
 RANKS = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
