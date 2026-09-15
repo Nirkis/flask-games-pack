@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мины</title>
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; min-height: 100vh; color: #e6edf6;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1f2937 0%, #0b1220 70%);
+  }
+  h1 { margin: 0 0 14px; font-size: 22px; letter-spacing: 1px; text-align: center; color: #f4d35e; }
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 16px; max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 950px) { .layout { grid-template-columns: 1fr; } }
+  .panel {
+    background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px; padding: 12px; margin-bottom: 12px;
+  }
+  .panel h2 {
+    margin: 0 0 8px; font-size: 13px; color: #9ad29a;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .top-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .info { font-size: 14px; }
+  .info b { color: #f4d35e; }
+  .code-badge {
+    display: inline-block; padding: 3px 9px; margin-right: 10px;
+    background: #0e1626; border: 1px dashed #f4d35e;
+    border-radius: 6px; color: #f4d35e; font-family: monospace;
+    font-size: 14px; letter-spacing: 2px;
+  }
+
+  .status {
+    padding: 10px 14px; border-radius: 8px; font-weight: 600;
+    text-align: center; margin-bottom: 12px;
+  }
+  .status.turn   { background: #2c6e3f; color: #d6ffd6; }
+  .status.wait   { background: #7a6a1d; color: #fff6c9; }
+  .status.over   { background: #7a1d1d; color: #ffd6d6; }
+  .status.normal { background: #333; color: #ddd; }
+
+  /* ---------- Поле ---------- */
+  .board-wrap { display: flex; flex-direction: column; align-items: center; }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 2px;
+    width: 100%; max-width: 560px;
+    aspect-ratio: 1 / 1;
+    background: rgba(0,0,0,.4);
+    padding: 4px; border-radius: 10px;
+  }
+  .cell {
+    background: #1e2a44;
+    border: 1px solid #2a3f5f;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px;
+    cursor: pointer; user-select: none;
+    transition: background .1s, transform .05s;
+  }
+  .cell:hover:not(.disabled):not(.opened) { background: #2c4a7a; }
+  .cell:active:not(.disabled):not(.opened) { transform: scale(.94); }
+  .cell.opened { background: #0d1524; cursor: default; }
+  .cell.opened.num-1 { color: #60a5fa; }
+  .cell.opened.num-2 { color: #4ade80; }
+  .cell.opened.num-3 { color: #f87171; }
+  .cell.opened.num-4 { color: #c084fc; }
+  .cell.opened.num-5 { color: #fbbf24; }
+  .cell.opened.num-6 { color: #22d3ee; }
+  .cell.opened.num-7 { color: #f472b6; }
+  .cell.opened.num-8 { color: #cbd5e1; }
+  .cell.flagged  { background: #f4d35e; color: #1a1a1a; cursor: pointer; }
+  .cell.exploded { background: #b91c1c; color: #fff; cursor: default; }
+  .cell.revealed_mine { background: #7f1d1d; color: #fff; cursor: default; }
+  .cell.disabled { cursor: default; }
+  .cell.disabled:hover { background: inherit; }
+
+  /* ---------- Кнопки ---------- */
+  button {
+    background: #f4d35e; color: #1a1a1a; border: none;
+    padding: 10px 18px; border-radius: 8px; font-weight: 700;
+    font-size: 14px; cursor: pointer; transition: filter .15s;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.sec    { background: #4a6fa5; color: #fff; }
+  button.active { background: #6aa8ff; color: #0d1b30; }
+  button.danger { background: #e05a5a; color: #fff; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
+  .err { color: #ff9a9a; font-size: 13px; min-height: 18px; margin-top: 6px; text-align: center; }
+
+  /* ---------- Игроки ---------- */
+  .players-list { list-style: none; padding: 0; margin: 0; }
+  .players-list li {
+    padding: 8px 10px; border-radius: 6px; margin-bottom: 6px;
+    background: rgba(255,255,255,.04);
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    font-size: 14px;
+  }
+  .players-list li.me { background: rgba(37,99,235,.25); border: 1px solid rgba(59,130,246,.4); }
+  .players-list li.turn { box-shadow: inset 3px 0 0 #4ade80; }
+  .players-list li.dead { opacity: .45; text-decoration: line-through; }
+  .players-list .hp { color: #ff8080; font-weight: 700; }
+  .players-list .sc { color: #f4d35e; font-weight: 700; }
+
+  /* ---------- Лог и график ---------- */
+  .log { max-height: 220px; overflow-y: auto; font-size: 13px; line-height: 1.5; color: #cfd8cf; }
+  .log div { border-bottom: 1px dashed rgba(255,255,255,.08); padding: 3px 0; }
+  .chart-wrap { position: relative; height: 220px; }
+
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: #7a1d1d; color: #ffd6d6; padding: 12px 22px;
+    border-radius: 10px; border: 1px solid #ff7777;
+    box-shadow: 0 8px 30px rgba(0,0,0,.6);
+    z-index: 1000; font-weight: 600;
+  }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 900; flex-direction: column; gap: 20px;
+    backdrop-filter: blur(6px);
+  }
+  .overlay h1 { font-size: 42px; color: #f4d35e; text-shadow: 0 0 30px #f4d35e88; margin: 0; }
+  .overlay .sub { font-size: 16px; opacity: .85; }
+</style>
+</head>
+<body>
+
+<h1>💣 Мины</h1>
+
+<div class="layout">
+  <div>
+    <div class="panel">
+      <div class="top-bar">
+        <div class="info">
+          <span class="code-badge" id="roomCode">MN-???</span>
+          Мин осталось: <b id="minesLeft">0</b>
+          &nbsp;|&nbsp; Ходов: <b id="moveNo">0</b>
+        </div>
+        <div>
+          <button class="sec" id="resetBtn">Новая партия</button>
+          <button class="sec" id="leaveBtn">Выйти</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="status" class="status normal">…</div>
+
+    <div class="panel board-wrap">
+      <div class="board" id="board"></div>
+      <div class="controls">
+        <button id="modeBtn" class="sec">Режим: 🔎 открывать</button>
+        <span style="font-size:12px;opacity:.6;align-self:center;">
+          ЛКМ — действие, ПКМ — всегда метка
+        </span>
+      </div>
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Игроки</h2>
+      <ul class="players-list" id="playersList"></ul>
+    </div>
+    <div class="panel">
+      <h2>Динамика очков</h2>
+      <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Журнал</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay" class="overlay" style="display:none">
+  <h1 id="overlayTitle">Игра</h1>
+  <div class="sub" id="overlaySub"></div>
+  <button class="sec" id="overlayReset">Новая партия</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const $ = s => document.querySelector(s);
+  const boardEl = $('#board');
+  const statusEl = $('#status');
+  const logEl = $('#log');
+  const errEl = $('#err');
+  const overlay = $('#overlay');
+
+  let STATE = null;
+  let chart = null;
+  let pollTimer = null;
+  let pollBusy = false;
+  let flagMode = false;   // false = открывать, true = помечать
+
+  const PLAYER_COLORS = ['#6fe36f', '#f4a35e', '#c08fff', '#6aa8ff'];
+
+  // ---------- Утилиты ----------
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+
+  function toast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2400);
+  }
+  function goHome() {
+    fetch('/api/leave', { method: 'POST', credentials: 'same-origin' })
+      .catch(() => {})
+      .then(() => { window.location.href = '/'; });
+  }
+  async function api(path, method, body) {
+    const opt = { method: method || 'GET', credentials: 'same-origin' };
+    if (body) {
+      opt.headers = { 'Content-Type': 'application/json' };
+      opt.body = JSON.stringify(body);
+    }
+    const r = await fetch(path, opt);
+    let data = {};
+    try { data = await r.json(); } catch (e) {}
+    return { status: r.status, ok: r.ok, data };
+  }
+
+  // ---------- Кнопки ----------
+  $('#leaveBtn').addEventListener('click', goHome);
+  $('#resetBtn').addEventListener('click', async () => {
+    const res = await api('/mn/api/reset', 'POST', {});
+    if (!res.ok) { toast(res.data.error || 'Ошибка'); return; }
+    applyState(res.data.state);
+  });
+  $('#overlayReset').addEventListener('click', async () => {
+    const res = await api('/mn/api/reset', 'POST', {});
+    if (!res.ok) { toast(res.data.error || 'Ошибка'); return; }
+    applyState(res.data.state);
+  });
+  $('#modeBtn').addEventListener('click', () => {
+    flagMode = !flagMode;
+    renderModeButton();
+    renderBoard();
+  });
+  function renderModeButton() {
+    const b = $('#modeBtn');
+    if (flagMode) {
+      b.textContent = 'Режим: 🚩 помечать';
+      b.classList.remove('sec'); b.classList.add('active');
+    } else {
+      b.textContent = 'Режим: 🔎 открывать';
+      b.classList.remove('active'); b.classList.add('sec');
+    }
+  }
+
+  // ---------- Опрос сервера ----------
+  async function refresh() {
+    if (pollBusy) return;
+    pollBusy = true;
+    try {
+      const r = await fetch('/mn/api/state?_=' + Date.now(), { cache: 'no-store' });
+      if (r.status === 404) { goHome(); return; }
+      const j = await r.json();
+      if (!j.ok) { goHome(); return; }
+      applyState(j.state);
+    } catch (e) {
+    } finally {
+      pollBusy = false;
+    }
+  }
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(refresh, 800);
+  }
+
+  // ---------- Применение состояния ----------
+  function applyState(st) {
+    if (!st) return;
+    STATE = st;
+    $('#roomCode').textContent = st.game_id || 'MN-???';
+    $('#minesLeft').textContent = st.mines_left ?? 0;
+    $('#moveNo').textContent = st.history ? st.history.length : 0;
+
+    renderStatus();
+    renderPlayers();
+    renderBoard();
+    renderLog();
+    renderChart();
+    renderOverlay();
+  }
+
+  function renderStatus() {
+    const s = statusEl;
+    s.className = 'status';
+    if (!STATE) { s.textContent = '…'; return; }
+
+    if (STATE.phase === 'over') {
+      s.classList.add('over');
+      if (STATE.i_won) s.textContent = '🏆 Победа!';
+      else if (STATE.draw) s.textContent = '🤝 Ничья';
+      else s.textContent = '💀 Игра окончена';
+    } else if (STATE.waiting_opponents) {
+      s.classList.add('wait');
+      const occ = STATE.occupied.filter(Boolean).length;
+      s.textContent = 'Ожидание игроков (' + occ + '/' + STATE.num_players + ')…';
+    } else if (STATE.my_turn) {
+      s.classList.add('turn');
+      s.textContent = 'Ваш ход — HP ' + STATE.my_hp + ', очков ' + STATE.my_score;
+    } else {
+      s.classList.add('normal');
+      s.textContent = 'Ход: ' + STATE.names[STATE.turn] +
+                      ' (HP ' + STATE.hp[STATE.turn] + ')';
+    }
+  }
+
+  function renderPlayers() {
+    const el = $('#playersList');
+    el.innerHTML = '';
+    if (!STATE) return;
+
+    const all = [];
+    all.push({ idx: STATE.slot, name: STATE.my_name, hp: STATE.my_hp, score: STATE.my_score, alive: STATE.my_hp > 0, me: true });
+    (STATE.others || []).forEach(o => all.push({
+      idx: o.idx, name: o.name, hp: o.hp, score: o.score, alive: o.alive, me: false,
+    }));
+
+    all.forEach(p => {
+      const li = document.createElement('li');
+      const cls = [];
+      if (p.me) cls.push('me');
+      if (!p.alive) cls.push('dead');
+      if (STATE.phase === 'battle' && STATE.turn === p.idx) cls.push('turn');
+      li.className = cls.join(' ');
+      li.innerHTML =
+        '<span>' + esc(p.name) + (p.me ? ' <i style="opacity:.7">(вы)</i>' : '') + '</span>' +
+        '<span><span class="hp">❤ ' + p.hp + '</span> ' +
+        '<span class="sc">★ ' + p.score + '</span></span>';
+      el.appendChild(li);
+    });
+  }
+
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    if (!STATE || !STATE.cells) return;
+
+    const n = STATE.board_size;
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        const cell = STATE.cells[r][c];
+        const el = document.createElement('div');
+        el.className = 'cell';
+        el.dataset.r = r; el.dataset.c = c;
+
+        if (cell.state === 'opened') {
+          el.classList.add('opened');
+          if (cell.number && cell.number > 0) {
+            el.textContent = cell.number;
+            el.classList.add('num-' + cell.number);
+          }
+        } else if (cell.state === 'flagged') {
+          el.classList.add('flagged');
+          el.textContent = '🚩';
+        } else if (cell.state === 'exploded') {
+          el.classList.add('exploded');
+          el.textContent = '💥';
+        } else if (cell.state === 'revealed_mine') {
+          el.classList.add('revealed_mine');
+          el.textContent = '💣';
+        }
+
+        const interactive =
+          STATE.phase === 'battle' && STATE.my_turn && STATE.my_hp > 0 &&
+          cell.state !== 'opened' &&
+          cell.state !== 'exploded' &&
+          cell.state !== 'revealed_mine';
+        if (!interactive) el.classList.add('disabled');
+
+        if (interactive) {
+          el.addEventListener('click', ev => { ev.preventDefault(); onCell(r, c, flagMode); });
+          el.addEventListener('contextmenu', ev => { ev.preventDefault(); onCell(r, c, true); });
+        }
+
+        boardEl.appendChild(el);
+      }
+    }
+  }
+
+  async function onCell(r, c, asFlag) {
+    if (!STATE || STATE.phase !== 'battle') return;
+    if (!STATE.my_turn) { toast('Не ваш ход'); return; }
+    const cell = STATE.cells[r][c];
+
+    // Определяем, что делаем: открыть или пометить/снять метку
+    let endpoint;
+    if (asFlag) {
+      if (cell.state === 'flagged' && cell.flagger !== STATE.slot) {
+        toast('Это чужая метка'); return;
+      }
+      endpoint = 'flag';
+    } else if (cell.state === 'flagged') {
+      // ЛКМ по своей метке — снять
+      if (cell.flagger !== STATE.slot) { toast('Это чужая метка'); return; }
+      endpoint = 'flag';
+    } else {
+      endpoint = 'open';
+    }
+
+    errEl.textContent = '';
+    const res = await api('/mn/api/' + endpoint, 'POST', { r, c });
+    if (!res.ok) {
+      errEl.textContent = res.data.error || 'Ошибка';
+      return;
+    }
+    applyState(res.data.state);
+  }
+
+  function renderLog() {
+    if (!STATE) return;
+    logEl.innerHTML = (STATE.log || []).map(l => '<div>' + esc(l) + '</div>').join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function renderChart() {
+    const hist = (STATE && STATE.history) || [];
+    if (!hist.length) return;
+    const labels = hist.map(h => h.n);
+    const datasets = [];
+    for (let i = 0; i < STATE.num_players; i++) {
+      const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+      const name = (i === STATE.slot) ? 'Вы' : STATE.names[i];
+      datasets.push({
+        label: name,
+        data: hist.map(h => h.score[i] || 0),
+        borderColor: color,
+        backgroundColor: 'rgba(0,0,0,0)',
+        tension: .25, fill: false,
+        pointRadius: 2, borderWidth: 2,
+      });
+    }
+
+    const fingerprint = JSON.stringify(labels) + '|' + JSON.stringify(datasets.map(d => d.data));
+    if (!chart) {
+      chart = new Chart($('#chart').getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,.05)' } },
+            y: { ticks: { color: '#aaa', precision: 0 }, grid: { color: 'rgba(255,255,255,.05)' } },
+          },
+          plugins: { legend: { labels: { color: '#cfd8e8', boxWidth: 12, font: { size: 11 } } } },
+        },
+      });
+      chart._fp = fingerprint;
+      return;
+    }
+    if (chart._fp === fingerprint) return;
+    chart._fp = fingerprint;
+    chart.data.labels = labels;
+    chart.data.datasets = datasets;
+    chart.update('none');
+  }
+
+  function renderOverlay() {
+    if (!STATE) return;
+    if (STATE.phase !== 'over') { overlay.style.display = 'none'; return; }
+    overlay.style.display = 'flex';
+    const t = $('#overlayTitle');
+    const s = $('#overlaySub');
+    if (STATE.i_won) {
+      t.textContent = '🏆 Победа!';
+    } else if (STATE.draw) {
+      t.textContent = '🤝 Ничья';
+    } else {
+      t.textContent = '💀 Вы проиграли';
+    }
+    const scores = (STATE.score || []).map((v, i) => {
+      const nm = (i === STATE.slot) ? 'Вы' : STATE.names[i];
+      return nm + ': ' + v;
+    }).join(' · ');
+    s.textContent = scores;
+  }
+
+  // ---------- Старт ----------
+  renderModeButton();
+  refresh();
+  startPolling();
+})();
+</script>
+</body>
+</html>
