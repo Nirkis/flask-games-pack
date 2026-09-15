@@ -8,6 +8,11 @@ from flask import Blueprint, jsonify, request, session
 
 bp = Blueprint('hearthlite', __name__, url_prefix='/hl')
 
+GAME_META = {
+    'code': 'hl', 'prefix': 'HL', 'name': 'HearthLite',
+    'players': '2-3', 'template': 'hearthlite.html', 'order': 10,
+}
+
 MIN_PLAYERS = 2
 MAX_PLAYERS = 3
 START_HP = 30
