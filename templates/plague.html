@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plague Inc</title>
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 14px; min-height: 100vh; color: #e6edf6;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #2a1040 0%, #0b0714 70%);
+  }
+  h1 { margin: 0 0 12px; font-size: 22px; letter-spacing: 2px; text-align: center; color: #ff8b8b; }
+  .panel {
+    background: rgba(20,10,30,.55); border: 1px solid rgba(255,120,120,.15);
+    border-radius: 12px; padding: 12px; margin-bottom: 10px;
+  }
+  .panel h2 { margin: 0 0 8px; font-size: 12px; color: #ff8b8b;
+              text-transform: uppercase; letter-spacing: 1.2px; }
+  .layout { display: grid; grid-template-columns: 1fr 360px; gap: 12px; max-width: 1500px; margin: 0 auto; }
+  @media (max-width: 1050px) { .layout { grid-template-columns: 1fr; } }
+
+  .top-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .code-badge {
+    display: inline-block; padding: 3px 9px;
+    background: #1a0d24; border: 1px dashed #ff8b8b;
+    border-radius: 6px; color: #ff8b8b; font-family: monospace;
+    font-size: 14px; letter-spacing: 2px;
+  }
+  .top-actions { display: flex; gap: 8px; align-items: center; }
+  .live-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #6fe36f; box-shadow: 0 0 10px #6fe36f;
+    animation: pulse 1.4s infinite; margin-right: 6px;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .live-label { font-size: 11px; color: #9ad29a; letter-spacing: 1px; text-transform: uppercase; }
+
+  .status {
+    padding: 10px 14px; border-radius: 8px; font-weight: 600;
+    text-align: center; margin-bottom: 10px; font-size: 14px;
+  }
+  .status.turn   { background: #2c6e3f; color: #d6ffd6; }
+  .status.wait   { background: #7a6a1d; color: #fff6c9; }
+  .status.over   { background: #7a1d1d; color: #ffd6d6; }
+  .status.normal { background: #333; color: #ddd; }
+
+  .world-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+  .stat-card {
+    background: rgba(0,0,0,.35); padding: 8px 10px;
+    border-radius: 8px; border: 1px solid rgba(255,255,255,.06);
+  }
+  .stat-card .k { font-size: 10px; color: #9db2d0; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-card .v { font-size: 18px; font-weight: 800; color: #f4d35e; margin-top: 2px; }
+  .stat-card .v.danger { color: #e05a5a; }
+  .stat-card .v.ok { color: #6fe36f; }
+
+  .pool-wrap { margin-top: 10px; }
+  .pool-label { display: flex; justify-content: space-between; font-size: 12px; color: #cfd8e8; margin-bottom: 4px; }
+  .pool-bar { height: 14px; border-radius: 7px; background: rgba(0,0,0,.5); overflow: hidden; display: flex; }
+  .pool-seg { height: 100%; transition: width .6s linear; }
+  .pool-hint { font-size: 10px; opacity: .6; margin-top: 3px; }
+
+  .cure-wrap { margin-top: 10px; }
+  .cure-label { display: flex; justify-content: space-between; font-size: 12px; color: #cfd8e8; margin-bottom: 4px; }
+  .cure-bar { height: 16px; border-radius: 8px; background: rgba(0,0,0,.5); overflow: hidden; }
+  .cure-fill {
+    height: 100%; background: linear-gradient(90deg, #3b7cff, #8b5cf6);
+    width: 0%; transition: width .6s linear;
+  }
+
+  .diseases-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
+  .disease {
+    background: rgba(0,0,0,.35); padding: 10px;
+    border-radius: 10px; border: 1px solid rgba(255,255,255,.08);
+  }
+  .disease.me { border-color: #6aa8ff; box-shadow: 0 0 12px #6aa8ff44; }
+  .disease.detected { border-color: #e05a5a; }
+  .disease.neutralized { opacity: .55; }
+  .disease .head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 700; margin-bottom: 6px; font-size: 13px;
+  }
+  .disease .score-badge {
+    background: #4a1d5c; color: #f4d35e; font-weight: 800; font-size: 13px;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .disease .row { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; }
+  .disease .row b { color: #f4d35e; }
+  .bar { height: 5px; background: rgba(255,255,255,.08); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; transition: width .6s linear; }
+  .bar-vis .bar-fill { background: linear-gradient(90deg, #4a6fa5, #e05a5a); }
+  .bar-cure .bar-fill { background: linear-gradient(90deg, #3b7cff, #8b5cf6); }
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: 700; }
+  .badge.detected { background: #7a1d1d; color: #ffd6d6; }
+  .badge.neutralized { background: #4a1d5c; color: #e0b0ff; }
+  .badge.extinct { background: #333; color: #aaa; }
+
+  /* Лобби */
+  #lobbyPanel { max-width: 900px; margin: 0 auto; }
+  .lobby-players {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px; margin: 12px 0;
+  }
+  .lobby-card {
+    background: rgba(0,0,0,.35); padding: 10px;
+    border-radius: 10px; border: 1px solid rgba(255,255,255,.08);
+    text-align: center;
+  }
+  .lobby-card.me { border-color: #6aa8ff; box-shadow: 0 0 12px #6aa8ff44; }
+  .lobby-card .nm { font-weight: 700; margin-bottom: 6px; }
+  .lobby-card .dt { font-size: 13px; color: #f4d35e; }
+  .lobby-card .pending { font-size: 13px; opacity: .6; font-style: italic; }
+
+  .dtype-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .dtype-card {
+    background: rgba(0,0,0,.35); padding: 12px;
+    border-radius: 10px; border: 2px solid rgba(255,255,255,.08);
+    cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s;
+  }
+  .dtype-card:hover { border-color: #8b5cf6; transform: translateY(-2px); }
+  .dtype-card.selected { border-color: #6aa8ff; box-shadow: 0 0 14px #6aa8ff66; }
+  .dtype-card .dc-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .dtype-card .dc-desc { font-size: 11px; opacity: .8; line-height: 1.4; }
+  .dtype-card .dc-stats { font-size: 10px; opacity: .65; margin-top: 6px; line-height: 1.5; }
+
+  /* Очки */
+  .sp-box {
+    display: flex; align-items: center; gap: 12px;
+    background: linear-gradient(135deg, #3b1e5c, #1c0f30);
+    border: 1px solid #8b5cf6; border-radius: 12px;
+    padding: 10px 14px; margin-bottom: 10px;
+  }
+  .sp-icon { font-size: 28px; }
+  .sp-info { flex: 1; }
+  .sp-label { font-size: 11px; color: #c8b6ff; text-transform: uppercase; letter-spacing: 1.5px; }
+  .sp-value { font-size: 26px; font-weight: 900; color: #f4d35e; line-height: 1; }
+  .sp-hint { font-size: 10px; opacity: .65; }
+
+  .web-scroll { overflow: auto; border-radius: 10px; }
+  .web-wrap {
+    position: relative; width: 1300px; height: 1150px;
+    background: radial-gradient(ellipse at 50% 30%, #1f0a2e 0%, #0b0514 80%);
+    border: 1px solid rgba(255,255,255,.06); border-radius: 12px; overflow: hidden;
+  }
+  .web-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .node {
+    position: absolute; transform: translate(-50%, -50%);
+    width: 100px; min-height: 70px;
+    padding: 6px 4px;
+    background: linear-gradient(180deg, #2a1740, #180a26);
+    border: 2px solid #3a2050; border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: default; user-select: none; text-align: center;
+    transition: transform .12s, border-color .12s, box-shadow .12s;
+  }
+  .node.clickable { cursor: pointer; border-color: #8b5cf6; box-shadow: 0 0 12px #8b5cf655; }
+  .node.clickable:hover {
+    transform: translate(-50%, -50%) scale(1.06);
+    border-color: #b080ff; box-shadow: 0 0 18px #b080ff88;
+  }
+  .node.locked { opacity: .45; }
+  .node.maxed { border-color: #f4d35e; box-shadow: 0 0 14px #f4d35e55; }
+  .node.combo { background: linear-gradient(180deg, #4a2a08, #241304); border-color: #a06828; }
+  .node.combo.maxed { border-color: #f4d35e; }
+  .node .n-emoji { font-size: 20px; line-height: 1; }
+  .node .n-name { font-size: 10px; font-weight: 700; margin-top: 2px; line-height: 1.1; }
+  .node .n-pips { display: flex; gap: 2px; margin-top: 4px; }
+  .node .n-pip { width: 6px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.12); }
+  .node .n-pip.on { background: #6fe36f; box-shadow: 0 0 4px #6fe36f88; }
+  .node.combo .n-pip.on { background: #f4d35e; box-shadow: 0 0 4px #f4d35e88; }
+  .node .n-cost { font-size: 9px; opacity: .8; margin-top: 3px; color: #c8b6ff; font-weight: 700; }
+  .node.maxed .n-cost { color: #f4d35e; }
+  .node .n-plus {
+    position: absolute; top: -7px; right: -7px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #8b5cf6; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 14px;
+    box-shadow: 0 0 8px #8b5cf6; animation: bounce 1.2s infinite;
+  }
+  @keyframes bounce { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+  .node-tip {
+    position: absolute; left: 50%; bottom: 100%;
+    transform: translate(-50%, -8px);
+    background: #180a26; color: #e6edf6;
+    border: 1px solid #8b5cf6; border-radius: 8px;
+    padding: 8px 10px; font-size: 11px; line-height: 1.4;
+    width: 230px; text-align: left;
+    opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 50;
+  }
+  .node:hover .node-tip { opacity: 1; }
+  .node-tip .req { color: #ffb0b0; display: block; }
+  .node-tip .req.met { color: #9bff9b; }
+
+  .legend-web { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+                font-size: 11px; opacity: .7; margin-top: 8px; }
+  .legend-web span i { display: inline-block; width: 10px; height: 10px;
+                       border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+
+  .log { max-height: 260px; overflow-y: auto; font-size: 12px; line-height: 1.5; color: #cfd8cf; }
+  .log div { border-bottom: 1px dashed rgba(255,255,255,.06); padding: 3px 0; }
+  .chart-wrap { position: relative; height: 240px; }
+  .err { color: #ff9a9a; font-size: 12px; min-height: 16px; margin-top: 4px; text-align: center; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.85);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 18px; z-index: 900;
+    backdrop-filter: blur(6px);
+  }
+  .overlay h1 { font-size: 42px; color: #f4d35e; margin: 0; text-shadow: 0 0 30px #f4d35e88; }
+  .overlay .sub { font-size: 14px; opacity: .9; max-width: 680px; text-align: center; white-space: pre-line; line-height: 1.6; }
+  button { cursor: pointer; border: none; border-radius: 8px; padding: 9px 16px; font-weight: 700; font-size: 13px; }
+  button.sec { background: #4a6fa5; color: #fff; }
+  button.sec:hover { filter: brightness(1.15); }
+  button.primary { background: #8b5cf6; color: #fff; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.15); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<h1>🦠 Plague Inc</h1>
+
+<!-- ============================ ЛОББИ ============================ -->
+<div id="lobbyPanel" class="hidden">
+  <div class="panel">
+    <div class="top-bar">
+      <div><span class="code-badge" id="lobbyCode">PL-???</span></div>
+      <div class="top-actions">
+        <span><span class="live-dot"></span><span class="live-label">лобби</span></span>
+        <button class="sec" id="leaveBtnLobby">Выйти</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>🎭 Выберите тип болезни</h2>
+    <div class="dtype-grid" id="dtypeGrid"></div>
+    <div class="err" id="lobbyErr"></div>
+  </div>
+
+  <div class="panel">
+    <h2>👥 Игроки</h2>
+    <div class="lobby-players" id="lobbyPlayers"></div>
+    <div id="lobbyStatus" class="status wait">Ждём остальных…</div>
+  </div>
+</div>
+
+<!-- ============================ ИГРА ============================ -->
+<div id="gameRoot" class="hidden">
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <div class="top-bar">
+          <div><span class="code-badge" id="roomCode">PL-???</span></div>
+          <div class="top-actions">
+            <span><span class="live-dot"></span><span class="live-label">realtime</span></span>
+            <button class="sec" id="resetBtn">Новая партия</button>
+            <button class="sec" id="leaveBtn">Выйти</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="status" class="status normal">…</div>
+
+      <div class="panel">
+        <h2>🌍 Мир (общий пул)</h2>
+        <div class="world-grid">
+          <div class="stat-card"><div class="k">Живых</div><div class="v" id="wAlive">—</div></div>
+          <div class="stat-card"><div class="k">Заражено</div><div class="v danger" id="wInf">—</div></div>
+          <div class="stat-card"><div class="k">Здоровых</div><div class="v ok" id="wFree">—</div></div>
+          <div class="stat-card"><div class="k">Погибло</div><div class="v danger" id="wKilled">—</div></div>
+          <div class="stat-card"><div class="k">Время, с</div><div class="v" id="wTime">0</div></div>
+          <div class="stat-card"><div class="k">Обнар./Нейтр.</div><div class="v" id="wFlags">0 / 0</div></div>
+        </div>
+        <div class="pool-wrap">
+          <div class="pool-label"><span>Распределение живых</span><span id="poolText">—</span></div>
+          <div class="pool-bar" id="poolBar"></div>
+          <div class="pool-hint">Здоровые / заражённые разными болезнями / потери</div>
+        </div>
+        <div class="cure-wrap">
+          <div class="cure-label"><span>💊 Вакцина против вас</span><span id="myCureText">0 %</span></div>
+          <div class="cure-bar"><div class="cure-fill" id="myCureFill"></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>🧬 Болезни</h2>
+        <div class="diseases-grid" id="diseasesGrid"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2>📈 Динамика (вы)</h2>
+        <div class="chart-wrap"><canvas id="chart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>📜 Журнал</h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="max-width:1500px;margin:10px auto;">
+    <h2>🌳 Паутинка симптомов</h2>
+    <div class="sp-box">
+      <div class="sp-icon">💡</div>
+      <div class="sp-info">
+        <div class="sp-label">Очки мутации</div>
+        <div class="sp-value" id="spValue">0</div>
+        <div class="sp-hint">Растут с пиком заражённых.</div>
+      </div>
+    </div>
+    <div class="web-scroll">
+      <div class="web-wrap" id="webWrap">
+        <svg class="web-lines" id="webLines"></svg>
+      </div>
+    </div>
+    <div class="legend-web">
+      <span><i style="background:#3a2050"></i> заблокировано</span>
+      <span><i style="background:#8b5cf6"></i> доступно</span>
+      <span><i style="background:#f4d35e"></i> максимум</span>
+      <span><i style="background:#a06828"></i> комбо</span>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<div id="overlay" class="overlay" style="display:none">
+  <h1 id="overlayTitle">—</h1>
+  <div class="sub" id="overlaySub"></div>
+  <button class="sec" id="overlayReset">Новая партия</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const $ = s => document.querySelector(s);
+  const errEl = $('#err');
+  const lobbyErrEl = $('#lobbyErr');
+  const overlay = $('#overlay');
+  let STATE = null;
+  let chart = null;
+  let pollTimer = null;
+  let pollBusy = false;
+  let treeSignature = null;
+  let dtypeSignature = null;
+
+  const PLAYER_COLORS = ['#6fe36f', '#f4a35e', '#c08fff', '#6aa8ff'];
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+  const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+  function toast(msg) {
+    errEl.textContent = msg;
+    setTimeout(() => { if (errEl.textContent === msg) errEl.textContent = ''; }, 2400);
+  }
+  function lobbyToast(msg) {
+    lobbyErrEl.textContent = msg;
+    setTimeout(() => { if (lobbyErrEl.textContent === msg) lobbyErrEl.textContent = ''; }, 2400);
+  }
+  function goHome() {
+    fetch('/api/leave', { method: 'POST', credentials: 'same-origin' })
+      .catch(() => {})
+      .then(() => { window.location.href = '/'; });
+  }
+  async function api(path, method, body) {
+    const opt = { method: method || 'GET', credentials: 'same-origin' };
+    if (body) {
+      opt.headers = { 'Content-Type': 'application/json' };
+      opt.body = JSON.stringify(body);
+    }
+    const r = await fetch(path, opt);
+    let data = {};
+    try { data = await r.json(); } catch (e) {}
+    return { status: r.status, ok: r.ok, data };
+  }
+
+  $('#leaveBtn').addEventListener('click', goHome);
+  $('#leaveBtnLobby').addEventListener('click', goHome);
+  $('#resetBtn').addEventListener('click', doReset);
+  $('#overlayReset').addEventListener('click', doReset);
+  async function doReset() {
+    const res = await api('/pl/api/reset', 'POST', {});
+    if (!res.ok) { toast(res.data.error || 'Ошибка'); return; }
+    applyState(res.data.state);
+  }
+
+  async function refresh() {
+    if (pollBusy) return;
+    pollBusy = true;
+    try {
+      const r = await fetch('/pl/api/state?_=' + Date.now(), { cache: 'no-store' });
+      if (r.status === 404) { goHome(); return; }
+      const j = await r.json();
+      if (!j.ok) { goHome(); return; }
+      applyState(j.state);
+    } catch (e) {
+    } finally {
+      pollBusy = false;
+    }
+  }
+  function startPolling() { if (!pollTimer) pollTimer = setInterval(refresh, 700); }
+
+  function applyState(st) {
+    if (!st) return;
+    STATE = st;
+
+    if (st.phase === 'lobby') {
+      $('#lobbyPanel').classList.remove('hidden');
+      $('#gameRoot').classList.add('hidden');
+      $('#overlay').style.display = 'none';
+      renderLobby();
+      return;
+    }
+
+    $('#lobbyPanel').classList.add('hidden');
+    $('#gameRoot').classList.remove('hidden');
+
+    $('#roomCode').textContent = st.game_id || 'PL-???';
+    renderStatus();
+    renderWorld();
+    renderDiseases();
+    renderTreeIfChanged();
+    renderLog();
+    renderChart();
+    renderOverlay();
+  }
+
+  // ---------- Лобби ----------
+  function renderLobby() {
+    $('#lobbyCode').textContent = STATE.game_id || 'PL-???';
+
+    const dtMap = STATE.disease_types || {};
+    const sig = JSON.stringify({
+      d: STATE.dtypes, o: STATE.occupied, n: STATE.names,
+      my: STATE.my_dtype, slot: STATE.slot,
+    });
+    if (sig === dtypeSignature) return;
+    dtypeSignature = sig;
+
+    // Плитки типов
+    const grid = $('#dtypeGrid');
+    grid.innerHTML = '';
+    Object.keys(dtMap).forEach(key => {
+      const dt = dtMap[key];
+      const card = document.createElement('div');
+      card.className = 'dtype-card';
+      if (STATE.my_dtype === key) card.classList.add('selected');
+      card.innerHTML =
+        '<div class="dc-name">' + esc(dt.name) + '</div>' +
+        '<div class="dc-desc">' + esc(dt.desc) + '</div>' +
+        '<div class="dc-stats">' +
+          'Распространение ×' + dt.spread.toFixed(2) + '<br>' +
+          'Смертность ×' + dt.kill.toFixed(2) + '<br>' +
+          'Заметность ×' + dt.vis.toFixed(2) + ' · Вакцина ×' + dt.vaccine.toFixed(2) +
+        '</div>' +
+        '<div class="dc-desc" style="margin-top:6px;opacity:.65">' + esc(dt.passive) + '</div>';
+      card.addEventListener('click', () => setDtype(key));
+      grid.appendChild(card);
+    });
+
+    // Игроки
+    const players = $('#lobbyPlayers');
+    players.innerHTML = '';
+    STATE.names.forEach((nm, i) => {
+      if (!STATE.occupied[i]) return;
+      const isMe = i === STATE.slot;
+      const dt = STATE.dtypes[i];
+      const el = document.createElement('div');
+      el.className = 'lobby-card' + (isMe ? ' me' : '');
+      el.innerHTML =
+        '<div class="nm">' + esc(nm) + (isMe ? ' <i style="opacity:.6">(вы)</i>' : '') + '</div>' +
+        (dt ? '<div class="dt">' + esc(dtMap[dt] ? dtMap[dt].name : dt) + '</div>'
+            : '<div class="pending">выбирает…</div>');
+      players.appendChild(el);
+    });
+
+    // Статус
+    const status = $('#lobbyStatus');
+    status.className = 'status';
+    if (STATE.all_ready) {
+      status.classList.add('turn');
+      status.textContent = '🚀 Все готовы — старт!';
+    } else if (STATE.waiting_opponents) {
+      status.classList.add('wait');
+      status.textContent = 'Ждём остальных игроков (' +
+        STATE.occupied.filter(Boolean).length + '/' + STATE.num_players + ')…';
+    } else if (!STATE.my_dtype) {
+      status.classList.add('wait');
+      status.textContent = 'Выберите тип болезни, чтобы начать';
+    } else {
+      status.classList.add('wait');
+      status.textContent = 'Ждём, пока соперники выберут тип…';
+    }
+  }
+
+  async function setDtype(dtype) {
+    const res = await api('/pl/api/action', 'POST', { action: 'set_type', dtype: dtype });
+    if (!res.ok) { lobbyToast(res.data.error || 'Ошибка'); return; }
+    dtypeSignature = null;
+    applyState(res.data.state);
+  }
+
+  // ---------- Игра ----------
+  function renderStatus() {
+    const s = $('#status');
+    s.className = 'status';
+    if (STATE.phase === 'over') {
+      s.classList.add('over');
+      if (STATE.i_won) s.textContent = '🏆 Победа!';
+      else if (STATE.draw) s.textContent = '🤝 Ничья';
+      else s.textContent = '💀 Поражение';
+      return;
+    }
+    const me = STATE.my_disease;
+    if (!me) { s.classList.add('normal'); s.textContent = '…'; return; }
+    if (me.extinct) {
+      s.classList.add('over');
+      s.textContent = '🪦 Болезнь вымерла';
+    } else if (me.neutralized) {
+      s.classList.add('over');
+      s.textContent = '💉 Нейтрализована — заражённые вылечиваются, счёт фиксируется';
+    } else if (me.detected) {
+      s.classList.add('wait');
+      s.textContent = '🚨 Обнаружены! Вакцина против вас растёт';
+    } else if (STATE.can_act) {
+      s.classList.add('turn');
+      s.textContent = 'Пандемия идёт. Прокачивайте органы';
+    } else {
+      s.classList.add('normal');
+      s.textContent = 'Наблюдение';
+    }
+  }
+
+  function renderWorld() {
+    $('#wAlive').textContent = fmt(STATE.world_alive);
+    $('#wInf').textContent = fmt(STATE.total_infected);
+    $('#wFree').textContent = fmt(STATE.uninfected);
+    $('#wKilled').textContent = fmt(STATE.world_killed);
+    $('#wTime').textContent = STATE.tick_count || 0;
+    const detected = (STATE.diseases || []).filter(d => d.detected).length;
+    const neutral = (STATE.diseases || []).filter(d => d.neutralized).length;
+    $('#wFlags').textContent = detected + ' / ' + neutral;
+
+    // Пул-бар: сегменты по болезням + свободные
+    const bar = $('#poolBar');
+    const total = Math.max(1, STATE.world_pop);
+    const segments = [];
+    (STATE.diseases || []).forEach((d, i) => {
+      if (d.infected > 0) {
+        const w = (d.infected / total * 100).toFixed(2);
+        const c = PLAYER_COLORS[i % PLAYER_COLORS.length];
+        segments.push('<div class="pool-seg" style="width:' + w +
+                      '%;background:' + c + '" title="' + esc(d.name) + ': ' +
+                      fmt(d.infected) + '"></div>');
+      }
+    });
+    if (STATE.uninfected > 0) {
+      const w = (STATE.uninfected / total * 100).toFixed(2);
+      segments.push('<div class="pool-seg" style="width:' + w +
+                    '%;background:#2a3f5f" title="Здоровые: ' +
+                    fmt(STATE.uninfected) + '"></div>');
+    }
+    if (STATE.world_killed > 0) {
+      const w = (STATE.world_killed / total * 100).toFixed(2);
+      segments.push('<div class="pool-seg" style="width:' + w +
+                    '%;background:#7a1d1d" title="Погибшие: ' +
+                    fmt(STATE.world_killed) + '"></div>');
+    }
+    bar.innerHTML = segments.join('');
+    $('#poolText').textContent =
+      fmt(STATE.uninfected) + ' здоровых · ' +
+      fmt(STATE.total_infected) + ' заражено · ' +
+      fmt(STATE.world_killed) + ' погибло';
+
+    const me = STATE.my_disease;
+    if (!me) return;
+    const pct = Math.min(100, (me.cure / STATE.cure_max) * 100);
+    $('#myCureFill').style.width = pct.toFixed(1) + '%';
+    $('#myCureText').textContent = me.cure.toFixed(1) + ' %';
+  }
+
+  function renderDiseases() {
+    const g = $('#diseasesGrid');
+    g.innerHTML = '';
+    const dtMap = STATE.disease_types || {};
+    (STATE.diseases || []).forEach((d, i) => {
+      const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+      const dt = dtMap[d.type] || { name: d.type, emoji: '🦠' };
+      const el = document.createElement('div');
+      el.className = 'disease';
+      if (d.is_me) el.classList.add('me');
+      if (d.detected) el.classList.add('detected');
+      if (d.neutralized || d.extinct) el.classList.add('neutralized');
+
+      const visPct = Math.min(100, d.visibility / STATE.detect_threshold * 100);
+      const curPct = Math.min(100, d.cure / STATE.cure_max * 100);
+
+      const badges = [];
+      if (d.detected && !d.neutralized) badges.push('<span class="badge detected">🚨 обнаружен</span>');
+      if (d.neutralized && !d.extinct) badges.push('<span class="badge neutralized">💉 нейтрализован</span>');
+      if (d.extinct) badges.push('<span class="badge extinct">🪦 вымер</span>');
+
+      el.innerHTML =
+        '<div class="head" style="color:' + color + '">' +
+          '<span>' + dt.emoji + ' ' + esc(d.name) +
+            (d.is_me ? ' <i style="opacity:.65">(вы)</i>' : '') + '</span>' +
+          '<span class="score-badge">★ ' + fmt(d.score) + '</span>' +
+        '</div>' +
+        '<div class="row" style="opacity:.7;font-size:11px"><span>Тип</span><span>' +
+          esc(dt.name) + '</span></div>' +
+        '<div class="row"><span>Заражено</span><b>' + fmt(d.infected) + '</b></div>' +
+        '<div class="row"><span>Пик</span><b>' + fmt(d.peak_infected) + '</b></div>' +
+        '<div class="row"><span>Погибло</span><b style="color:#e05a5a">' + fmt(d.killed) + '</b></div>' +
+        '<div class="row" style="margin-top:5px"><span>Заметность</span><b>' +
+          d.visibility.toFixed(1) + ' / 100</b></div>' +
+        '<div class="bar bar-vis"><div class="bar-fill" style="width:' + visPct.toFixed(1) + '%"></div></div>' +
+        '<div class="row" style="margin-top:5px"><span>💊 Вакцина</span><b>' +
+          d.cure.toFixed(1) + ' %</b></div>' +
+        '<div class="bar bar-cure"><div class="bar-fill" style="width:' + curPct.toFixed(1) + '%"></div></div>' +
+        (badges.length ? '<div class="badges">' + badges.join('') + '</div>' : '');
+      g.appendChild(el);
+    });
+  }
+
+  function renderTreeIfChanged() {
+    const my = STATE.my_disease;
+    if (!my || !STATE.skill_nodes.length) return;
+    const sig = JSON.stringify({
+      s: my.skills, p: my.skill_points, a: STATE.can_act,
+      ph: STATE.phase, n: my.neutralized, e: my.extinct
+    });
+    if (sig === treeSignature) return;
+    treeSignature = sig;
+    renderTree();
+  }
+
+  function renderTree() {
+    const wrap = $('#webWrap');
+    const svg = $('#webLines');
+    if (!wrap || !svg || !STATE.skill_nodes) return;
+    wrap.querySelectorAll('.node').forEach(n => n.remove());
+
+    const my = STATE.my_disease || { skills: {} };
+    const pts = my.skill_points || 0;
+    const canAct = STATE.can_act;
+    $('#spValue').textContent = pts;
+
+    STATE.skill_nodes.forEach(node => {
+      const lvl = my.skills ? (my.skills[node.id] || 0) : 0;
+      const maxed = lvl >= node.max;
+      const clickable = canAct && node.can_upgrade;
+
+      const el = document.createElement('div');
+      el.className = 'node';
+      el.dataset.node = node.id;
+      if (node.is_combo) el.classList.add('combo');
+      if (maxed) el.classList.add('maxed');
+      else if (!node.reqs_ok) el.classList.add('locked');
+      if (clickable) el.classList.add('clickable');
+      el.style.left = node.x + '%';
+      el.style.top  = node.y + '%';
+
+      let pipsHtml = '';
+      if (node.max > 1) {
+        pipsHtml = '<div class="n-pips">' +
+          Array.from({ length: node.max }, (_, i) =>
+            '<div class="n-pip' + (i < lvl ? ' on' : '') + '"></div>'
+          ).join('') + '</div>';
+      } else if (lvl >= 1) {
+        pipsHtml = '<div class="n-pips"><div class="n-pip on"></div></div>';
+      }
+
+      let costHtml = '';
+      if (maxed) costHtml = '<div class="n-cost">MAX</div>';
+      else if (node.reqs_ok) costHtml = '<div class="n-cost">' + node.cost + ' ОМ</div>';
+
+      let tip = '<div class="node-tip">' +
+        '<div style="font-weight:700;margin-bottom:4px">' + esc(node.name) +
+        (node.max > 1 ? ' (' + lvl + '/' + node.max + ')' : '') + '</div>' +
+        '<div style="opacity:.85;margin-bottom:6px">' + esc(node.desc) + '</div>';
+      if (node.requires && node.requires.length) {
+        tip += '<div style="font-size:10px;opacity:.85"><b>Требования:</b>';
+        node.requires.forEach(r => {
+          tip += '<span class="req' + (r.met ? ' met' : '') + '">' +
+            esc(r.name) + ': ' + r.have + '/' + r.need + (r.met ? ' ✔' : ' ✗') +
+            '</span>';
+        });
+        tip += '</div>';
+      }
+      tip += '</div>';
+
+      el.innerHTML =
+        (clickable ? '<div class="n-plus">+</div>' : '') +
+        '<div class="n-emoji">' + node.emoji + '</div>' +
+        '<div class="n-name">' + esc(node.name) + '</div>' +
+        pipsHtml + costHtml + tip;
+
+      if (clickable) el.addEventListener('click', () => upgrade(node.id));
+      wrap.appendChild(el);
+    });
+
+    const W = wrap.clientWidth;
+    const H = wrap.clientHeight;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.innerHTML = '';
+
+    STATE.skill_nodes.forEach(node => {
+      if (!node.requires) return;
+      node.requires.forEach(req => {
+        const pEl = wrap.querySelector('[data-node="' + req.id + '"]');
+        const cEl = wrap.querySelector('[data-node="' + node.id + '"]');
+        if (!pEl || !cEl) return;
+        const x1 = parseFloat(pEl.style.left) / 100 * W;
+        const y1 = parseFloat(pEl.style.top)  / 100 * H;
+        const x2 = parseFloat(cEl.style.left) / 100 * W;
+        const y2 = parseFloat(cEl.style.top)  / 100 * H;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+        line.setAttribute('stroke', req.met ? '#8b5cf6' : '#3a2050');
+        line.setAttribute('stroke-width', req.met ? 2 : 1.5);
+        line.setAttribute('stroke-dasharray', req.met ? '' : '4 4');
+        line.setAttribute('opacity', req.met ? 0.85 : 0.5);
+        svg.appendChild(line);
+      });
+    });
+  }
+
+  async function upgrade(nodeId) {
+    const res = await api('/pl/api/action', 'POST', { action: 'upgrade', node: nodeId });
+    if (!res.ok) { toast(res.data.error || 'Ошибка'); return; }
+    applyState(res.data.state);
+  }
+
+  function renderLog() {
+    const el = $('#log');
+    el.innerHTML = (STATE.log || []).map(l => '<div>' + esc(l) + '</div>').join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function renderChart() {
+    const hist = STATE.history || [];
+    if (!hist.length) return;
+    const labels = hist.map(h => h.n);
+    const my = STATE.slot;
+    const myColor = PLAYER_COLORS[my % PLAYER_COLORS.length];
+
+    const datasets = [
+      { label: 'Мои заражённые', data: hist.map(h => h.infected[my] || 0),
+        borderColor: myColor, backgroundColor: 'rgba(0,0,0,0)',
+        tension: .25, fill: false, pointRadius: 0, borderWidth: 2 },
+      { label: 'Мои погибшие', data: hist.map(h => h.killed[my] || 0),
+        borderColor: '#e05a5a', backgroundColor: 'rgba(0,0,0,0)',
+        tension: .25, fill: false, pointRadius: 0, borderWidth: 2 },
+      { label: 'Мои очки', data: hist.map(h => (h.score && h.score[my]) || 0),
+        borderColor: '#f4d35e', backgroundColor: 'rgba(0,0,0,0)',
+        tension: .25, fill: false, pointRadius: 0, borderWidth: 2, yAxisID: 'y2' },
+      { label: 'Вакцина %', data: hist.map(h => (h.cure && h.cure[my]) || 0),
+        borderColor: '#c08fff', backgroundColor: 'rgba(0,0,0,0)',
+        tension: .25, fill: false, pointRadius: 0, borderWidth: 2, yAxisID: 'y2' },
+    ];
+
+    const fp = String(labels.length) + '|' +
+      JSON.stringify(datasets.map(d => d.data[d.data.length - 1]));
+    if (!chart) {
+      chart = new Chart($('#chart').getContext('2d'), {
+        type: 'line', data: { labels, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x:  { ticks: { color: '#aaa', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,.05)' } },
+            y:  { ticks: { color: '#aaa', precision: 0 },     grid: { color: 'rgba(255,255,255,.05)' } },
+            y2: { position: 'right', beginAtZero: true,
+                  ticks: { color: '#f4d35e', precision: 0 }, grid: { drawOnChartArea: false } },
+          },
+          plugins: { legend: { labels: { color: '#cfd8e8', boxWidth: 12, font: { size: 11 } } } },
+        },
+      });
+      chart._fp = fp;
+      return;
+    }
+    if (chart._fp === fp) return;
+    chart._fp = fp;
+    chart.data.labels = labels;
+    chart.data.datasets = datasets;
+    chart.update('none');
+  }
+
+  function renderOverlay() {
+    if (!STATE) return;
+    if (STATE.phase !== 'over') { overlay.style.display = 'none'; return; }
+    overlay.style.display = 'flex';
+    const t = $('#overlayTitle');
+    const s = $('#overlaySub');
+    if (STATE.i_won) t.textContent = '🏆 Победа!';
+    else if (STATE.draw) t.textContent = '🤝 Ничья';
+    else if (STATE.num_players === 1) t.textContent = '🧪 Партия окончена';
+    else t.textContent = '💀 Вы проиграли';
+
+    const sorted = (STATE.diseases || []).slice().sort((a, b) => b.killed - a.killed);
+    const lines = sorted.map(d => {
+      const dt = (STATE.disease_types || {})[d.type] || {};
+      return (d.is_me ? 'Вы' : d.name) + ' (' + (dt.name || d.type) + ') — ' +
+        fmt(d.killed) + ' убито, ★ ' + fmt(d.score);
+    });
+    s.textContent =
+      'Время: ' + (STATE.tick_count || 0) + ' сек\n' +
+      'Погибло людей: ' + fmt(STATE.world_killed) + '\n\n' +
+      lines.join('\n');
+  }
+
+  window.addEventListener('resize', () => {
+    treeSignature = null;
+    if (STATE && STATE.phase !== 'lobby') renderTreeIfChanged();
+  });
+
+  refresh();
+  startPolling();
+})();
+</script>
+</body>
+</html>
