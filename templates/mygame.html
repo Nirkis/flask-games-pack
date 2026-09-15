@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta charset="utf-8"><title>Моя игра</title>
+</head><body>
+<h1>Моя игра</h1>
+<div id="root">Загрузка…</div>
+<script>
+(async function () {
+  const r = await fetch('/mg/api/state');   // ← URL строится на твоём префиксе
+  if (r.status === 404) { window.location.href = '/'; return; }
+  const j = await r.json();
+  document.getElementById('root').textContent = JSON.stringify(j.state, null, 2);
+})();
+</script>
+</body></html>
