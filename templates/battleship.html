@@ -1,344 +1,614 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Морской бой</title>
+<title>Морской бой: Четыре флота</title>
 <style>
-  * { box-sizing: border-box; }
+  :root {
+    --bg: #050b14;
+    --panel: rgba(13, 27, 44, 0.72);
+    --border: rgba(100, 165, 220, 0.16);
+    --border-2: rgba(100, 180, 255, 0.4);
+    --text: #dbe9f7;
+    --text-dim: #7f9cbb;
+    --text-mute: #516b85;
+    --accent: #22d3ee;
+    --primary: #3b82f6;
+    --danger: #ef4444;
+    --gold: #fbbf24;
+    --cell: 30px;
+    --p0: #3b82f6;
+    --p1: #ec4899;
+    --p2: #a855f7;
+    --p3: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
   body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: linear-gradient(135deg, #0b1d3a 0%, #071427 100%);
-    color: #e6f0ff;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    background:
+      radial-gradient(1200px 700px at 8% -10%, rgba(34, 211, 238, 0.07), transparent 60%),
+      radial-gradient(1000px 600px at 100% 5%, rgba(59, 130, 246, 0.09), transparent 60%),
+      radial-gradient(900px 500px at 50% 110%, rgba(8, 145, 178, 0.06), transparent 60%),
+      var(--bg);
+    color: var(--text);
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.5;
   }
-  header {
-    padding: 12px 22px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0,0,0,0.3);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  h1 { margin: 0; font-size: 18px; letter-spacing: 1px; }
-  .header-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  .code {
-    font-family: ui-monospace, monospace;
-    font-size: 16px;
-    background: rgba(255,255,255,0.08);
-    padding: 4px 12px;
-    border-radius: 6px;
-    letter-spacing: 4px;
-    font-weight: 700;
-  }
-  .phase-badge {
-    padding: 5px 12px; border-radius: 20px;
-    font-size: 12px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .phase-lobby     { background: #475569; }
-  .phase-placement { background: #b45309; }
-  .phase-battle    { background: #b91c1c; }
-  .phase-over      { background: #15803d; }
-  .turn-info { font-size: 14px; opacity: 0.9; }
-  .turn-info.you { color: #4ade80; font-weight: 700; opacity: 1; }
+  button { font-family: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
 
-  main {
-    display: grid;
-    grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr) 320px;
-    gap: 18px;
-    padding: 18px;
-    max-width: 1600px;
-    margin: 0 auto;
-    align-items: start;
-  }
-  @media (max-width: 1200px) {
-    main { grid-template-columns: 1fr 1fr; }
-    aside { grid-column: 1 / -1; }
-  }
-  @media (max-width: 780px) { main { grid-template-columns: 1fr; } }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 20px 20px 40px; }
 
-  .panel {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 14px;
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.05), rgba(59, 130, 246, 0.03));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    margin-bottom: 18px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   }
-  .panel h2 {
-    margin: 0 0 10px;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    opacity: 0.75;
-    font-weight: 700;
-  }
-
-  .board {
-    display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    gap: 2px;
-    background: rgba(0,0,0,0.35);
-    padding: 4px;
-    border-radius: 8px;
-    aspect-ratio: 1 / 1;
-    user-select: none;
-    position: relative;
-  }
-  .cell {
-    background: #1c3557;
-    border-radius: 3px;
-    cursor: pointer;
-    position: relative;
-    transition: background 0.1s;
-    min-height: 0;
-  }
-  .cell:hover { background: #2a4f7c; }
-  .cell.disabled { cursor: default; }
-  .cell.disabled:hover { background: #1c3557; }
-  .cell.ship { background: #64748b; }
-  .cell.ship-enemy { background: #94a3b8; }
-  .cell.hit { background: #dc2626; }
-  .cell.hit::after {
-    content: '✕';
-    position: absolute; inset: 0;
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand .logo {
+    width: 44px; height: 44px;
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-weight: 900; font-size: 14px;
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(8, 145, 178, 0.08));
+    border: 1px solid rgba(34, 211, 238, 0.4);
+    border-radius: 12px;
+    font-size: 22px;
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.18);
   }
-  .cell.miss { background: #0b1a2e; }
-  .cell.miss::after {
-    content: '';
-    position: absolute; inset: 30%;
-    background: #4a7ba7; border-radius: 50%;
+  .brand h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.4px; color: #eaf4ff; }
+  .brand .sub {
+    font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: 1.8px; color: var(--text-mute); font-weight: 600;
   }
-  .cell.preview-ok  { background: #10b981; }
-  .cell.preview-bad { background: #ef4444; }
 
-  .fleet-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .fleet-item {
-    padding: 6px 10px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 6px;
-    font-family: ui-monospace, monospace;
-    font-size: 12px;
-    letter-spacing: -1px;
-    cursor: pointer;
-    transition: all 0.1s;
-  }
-  .fleet-item:hover { background: rgba(255,255,255,0.14); }
-  .fleet-item.sel    { background: #2563eb; border-color: #3b82f6; }
-  .fleet-item.placed { opacity: 0.35; text-decoration: line-through; }
-
-  .controls { display: flex; gap: 8px; flex-wrap: wrap; }
-  button {
-    padding: 8px 14px;
-    border-radius: 6px;
-    border: none;
-    background: #2563eb;
-    color: white;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.12s;
-  }
-  button:hover:not(:disabled) { background: #1d4ed8; }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  button.secondary { background: #475569; }
-  button.secondary:hover:not(:disabled) { background: #334155; }
-  button.success { background: #16a34a; }
-  button.success:hover:not(:disabled) { background: #15803d; }
-
-  .enemy-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
-  .enemy-tab {
+  .stats { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .stat {
+    display: flex; flex-direction: column; gap: 2px;
     padding: 6px 12px;
-    border-radius: 6px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    cursor: pointer;
-    font-size: 13px;
-    transition: all 0.12s;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: 10px;
   }
-  .enemy-tab:hover { background: rgba(255,255,255,0.12); }
-  .enemy-tab.active { background: #2563eb; border-color: #3b82f6; }
-  .enemy-tab.dead { opacity: 0.5; }
-
-  .players-list { list-style: none; padding: 0; margin: 0; }
-  .players-list li {
-    padding: 8px 10px;
-    border-radius: 6px;
-    margin-bottom: 6px;
-    background: rgba(255,255,255,0.04);
-    font-size: 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
+  .stat .label {
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1.4px; color: var(--text-mute); font-weight: 700;
   }
-  .players-list li.me { background: rgba(37,99,235,0.25); border: 1px solid rgba(59,130,246,0.4); }
-  .players-list li.turn { box-shadow: inset 3px 0 0 #4ade80; }
-  .players-list li.dead { opacity: 0.4; text-decoration: line-through; }
-  .tag { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,0.1); }
-  .tag.ready { background: #15803d; }
-  .tag.wait  { background: #92400e; }
-
-  #chart-wrap { position: relative; height: 180px; }
-
-  .log {
-    max-height: 260px;
-    overflow-y: auto;
-    font-size: 12.5px;
-    font-family: ui-monospace, monospace;
-    line-height: 1.55;
+  .stat .value { font-size: 14px; font-weight: 700; color: var(--text); }
+  .stat .value.mono {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    letter-spacing: 2px; color: var(--accent); font-size: 15px;
   }
-  .log div { padding: 2px 0; opacity: 0.9; }
-  .log .t { color: #64748b; margin-right: 6px; }
 
-  .message {
-    padding: 20px;
-    text-align: center;
-    opacity: 0.75;
-    font-size: 14px;
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.3px;
+    border: 1px solid transparent;
+    background: linear-gradient(180deg, #2563eb, #1d4ed8);
+    border-color: rgba(96, 165, 250, 0.5);
+    color: #fff;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    transition: transform 0.08s, box-shadow 0.12s, filter 0.12s;
   }
+  .btn:hover:not(:disabled) { filter: brightness(1.12); }
+  .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 0 0 rgba(0,0,0,0.4); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; filter: saturate(0.5); }
+  .btn.ghost {
+    background: rgba(15, 33, 55, 0.7);
+    border-color: var(--border);
+    color: #bcd5ee;
+  }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--border-2); color: #e0eefc; }
+  .btn.success {
+    background: linear-gradient(180deg, #10b981, #059669);
+    border-color: rgba(52, 211, 153, 0.5);
+  }
+  .btn.gold {
+    background: linear-gradient(180deg, #f59e0b, #b45309);
+    border-color: rgba(251, 191, 36, 0.5);
+    color: #1a0e00;
+  }
+  .btn.sm { padding: 6px 12px; font-size: 12px; }
+
+  .toast {
+    display: none; margin-bottom: 16px; padding: 12px 18px;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(153, 27, 27, 0.15));
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    border-left: 4px solid var(--danger);
+    border-radius: 12px;
+    color: #ffd8d8; font-size: 14px;
+    animation: slideIn 0.22s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr 340px;
+    gap: 18px;
+  }
+  @media (max-width: 1180px) {
+    .layout { grid-template-columns: 1fr 1fr; }
+    .layout .log-card { grid-column: 1 / -1; }
+  }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: linear-gradient(180deg, rgba(17, 33, 54, 0.85), rgba(10, 21, 36, 0.9));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+  }
+  .card h2 {
+    font-size: 11.5px; font-weight: 700;
+    letter-spacing: 1.6px; text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2::before {
+    content: ''; width: 3px; height: 14px;
+    background: linear-gradient(180deg, var(--accent), var(--primary));
+    border-radius: 2px;
+  }
+  .hint { font-size: 12.5px; color: var(--text-dim); margin-top: 12px; line-height: 1.6; }
+  .hint b { color: #bcd5ee; }
+
   .banner {
-    padding: 12px 16px;
-    border-radius: 8px;
-    text-align: center;
-    font-weight: 700;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 22px; border-radius: 14px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(30, 64, 175, 0.06));
+    border: 1px solid rgba(96, 165, 250, 0.25);
     margin-bottom: 14px;
     font-size: 15px;
+    font-weight: 500;
   }
-  .banner.win  { background: #15803d; }
-  .banner.lose { background: #991b1b; }
-  .banner.info { background: #1e40af; }
+  .banner .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #60a5fa;
+    box-shadow: 0 0 12px rgba(96, 165, 250, 0.9);
+    flex-shrink: 0;
+  }
+  .banner.mine {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.08));
+    border-color: rgba(52, 211, 153, 0.5);
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.15);
+  }
+  .banner.mine .dot {
+    background: #34d399;
+    box-shadow: 0 0 14px rgba(52, 211, 153, 1);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+  .banner.win {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(180, 83, 9, 0.1));
+    border-color: rgba(251, 191, 36, 0.55);
+    color: #ffeab5; font-size: 17px;
+  }
+  .banner.win .dot {
+    background: var(--gold); box-shadow: 0 0 16px rgba(251, 191, 36, 1);
+  }
+  .banner .right {
+    margin-left: auto; font-size: 12.5px;
+    color: var(--text-dim); font-weight: 500;
+  }
+  .banner.mine .right { color: #a7f3d0; }
 
-  #toast {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: #b91c1c;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    transition: transform 0.25s ease;
-    z-index: 100;
-    pointer-events: none;
-    max-width: 90vw;
+  /* -------- STATS STRIP -------- */
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
   }
-  #toast.show { transform: translateX(-50%) translateY(0); }
+  .pcard {
+    position: relative;
+    padding: 11px 14px 11px 18px;
+    background: linear-gradient(180deg, rgba(17, 33, 54, 0.85), rgba(10, 21, 36, 0.9));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex; flex-direction: column; gap: 4px;
+    transition: all 0.18s;
+  }
+  .pcard::before {
+    content: ''; position: absolute;
+    left: 0; top: 8px; bottom: 8px; width: 4px;
+    background: var(--pc);
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 0 12px var(--pc);
+  }
+  .pcard.turn {
+    border-color: var(--pc);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--pc) 45%, transparent),
+                inset 0 0 24px color-mix(in srgb, var(--pc) 12%, transparent);
+    animation: turnPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes turnPulse {
+    0%, 100% { box-shadow: 0 0 20px color-mix(in srgb, var(--pc) 35%, transparent),
+                          inset 0 0 20px color-mix(in srgb, var(--pc) 10%, transparent); }
+    50% { box-shadow: 0 0 34px color-mix(in srgb, var(--pc) 65%, transparent),
+                     inset 0 0 26px color-mix(in srgb, var(--pc) 18%, transparent); }
+  }
+  .pcard.dead { opacity: 0.5; }
+  .pcard.me { background: linear-gradient(180deg, rgba(22, 46, 74, 0.95), rgba(12, 26, 44, 0.95)); }
+  .pcard .pname {
+    font-size: 13.5px; font-weight: 700; color: #e6f0fb;
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pcard .pname .tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    padding: 2px 7px; border-radius: 5px;
+    background: var(--pc); color: #041018;
+  }
+  .pcard .pname .deadmark { color: #f87171; font-size: 12px; }
+  .pcard .prow {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--text-dim);
+    gap: 10px;
+  }
+  .pcard .prow .num {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-weight: 700; color: #e6f0fb; font-size: 13px;
+  }
+  .pcard .prow .num.low { color: #fca5a5; }
+  .pcard .prow .num.mid { color: #fcd34d; }
+  .pcard .prow .num.full { color: #6ee7b7; }
+  .pcard .ships {
+    display: flex; gap: 3px; margin-top: 2px;
+  }
+  .pcard .ships i {
+    display: block; height: 5px; flex: 1;
+    background: color-mix(in srgb, var(--pc) 65%, transparent);
+    border-radius: 2px;
+    box-shadow: 0 0 4px color-mix(in srgb, var(--pc) 50%, transparent);
+  }
+  .pcard .ships i.off {
+    background: rgba(80, 100, 125, 0.3);
+    box-shadow: none;
+  }
+  .pcard .turn-badge {
+    position: absolute; top: 8px; right: 10px;
+    font-size: 9.5px; letter-spacing: 1px; font-weight: 800;
+    padding: 2px 7px; border-radius: 5px;
+    background: var(--pc); color: #041018;
+    text-transform: uppercase;
+    box-shadow: 0 0 12px var(--pc);
+  }
+
+  /* -------- BOARDS -------- */
+  table.board {
+    border-collapse: separate; border-spacing: 2px;
+    user-select: none; margin: 0 auto;
+  }
+  table.board th {
+    font-size: 10.5px; color: var(--text-mute);
+    font-weight: 700; width: var(--cell); height: var(--cell);
+    text-align: center; letter-spacing: 0.5px;
+  }
+  table.board td.cell {
+    width: var(--cell); height: var(--cell);
+    background: linear-gradient(180deg, #122943 0%, #0c1e33 100%);
+    border-radius: 5px;
+    padding: 0; position: relative;
+    transition: background 0.14s, box-shadow 0.14s, transform 0.08s;
+    box-shadow: inset 0 0 0 1px rgba(80, 140, 200, 0.08);
+  }
+  table.board td.cell.ship {
+    background: linear-gradient(180deg, #7c93b0 0%, #4a6480 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  }
+  table.board td.cell.hit {
+    background: radial-gradient(circle at 50% 50%, #fb7185 0%, #b91c1c 80%);
+    box-shadow: inset 0 0 10px rgba(255, 200, 200, 0.5),
+                0 0 10px var(--sc, #ef4444);
+    outline: 2px solid var(--sc, #ef4444);
+    outline-offset: -2px;
+  }
+  table.board td.cell.hit::after {
+    content: '✕'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 900; font-size: 14px;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+  }
+  table.board td.cell.sunk {
+    background: linear-gradient(180deg, #5c1010 0%, #2b0505 100%);
+    box-shadow: inset 0 0 0 2px var(--sc, #f87171),
+                inset 0 0 12px color-mix(in srgb, var(--sc, #f87171) 50%, transparent);
+    outline: 2px solid var(--sc, #f87171);
+    outline-offset: -2px;
+  }
+  table.board td.cell.sunk::after {
+    content: '☠'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fecaca; font-size: 13px;
+  }
+  table.board td.cell.miss {
+    background: linear-gradient(180deg, #0a1a2b 0%, #061220 100%);
+  }
+  table.board td.cell.miss::after {
+    content: ''; position: absolute;
+    top: 50%; left: 50%;
+    width: 7px; height: 7px;
+    margin: -3.5px 0 0 -3.5px;
+    background: var(--sc, #3b5a7a); border-radius: 50%;
+    box-shadow: 0 0 6px var(--sc, #3b5a7a),
+                inset 0 0 3px rgba(0, 0, 0, 0.4);
+  }
+  table.board.enemy.active td.cell:hover:not(.hit):not(.miss):not(.sunk) {
+    background: linear-gradient(180deg, #1e4b73 0%, #173a5a 100%);
+    box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.6),
+                0 0 10px rgba(34, 211, 238, 0.3);
+    transform: scale(1.04);
+  }
+  table.board.enemy.active { cursor: crosshair; }
+  table.board td.cell.preview-ok {
+    background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.6) !important;
+  }
+  table.board td.cell.preview-bad {
+    background: linear-gradient(180deg, #f87171 0%, #b91c1c 100%) !important;
+    box-shadow: 0 0 10px rgba(248, 113, 113, 0.55) !important;
+  }
+
+  .dock { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .dock-ship {
+    padding: 9px 10px;
+    background: linear-gradient(180deg, rgba(31, 111, 235, 0.14), rgba(20, 70, 150, 0.08));
+    border: 1.5px solid rgba(100, 165, 220, 0.28);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.14s;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: #cfe1f3;
+    user-select: none;
+  }
+  .dock-ship:hover {
+    background: linear-gradient(180deg, rgba(31, 111, 235, 0.3), rgba(20, 70, 150, 0.18));
+    border-color: rgba(96, 165, 250, 0.6);
+    transform: translateY(-1px);
+  }
+  .dock-ship.selected {
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.25), rgba(180, 83, 9, 0.1));
+    border-color: rgba(251, 191, 36, 0.8);
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.35);
+    color: #ffe7a8;
+  }
+  .dock-ship.placed {
+    opacity: 0.4;
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(52, 211, 153, 0.35);
+  }
+  .dock-ship.placed:hover {
+    opacity: 0.85;
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(248, 113, 113, 0.6);
+  }
+  .dock-ship .blocks { display: flex; gap: 2px; }
+  .dock-ship .blocks span {
+    width: 11px; height: 11px;
+    background: linear-gradient(180deg, #7c93b0, #4a6480);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  .dock-ship.selected .blocks span {
+    background: linear-gradient(180deg, #fcd34d, #d97706);
+  }
+  .dock-ship .sz { margin-left: auto; color: var(--text-mute); font-weight: 700; font-size: 11px; }
+
+  ul.players { list-style: none; margin: 0 0 12px; }
+  ul.players li {
+    padding: 9px 12px; font-size: 13.5px;
+    background: rgba(20, 40, 65, 0.55);
+    border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+    color: #c9d9e9;
+  }
+  ul.players li::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: #4b86c4; flex-shrink: 0;
+    box-shadow: 0 0 8px rgba(75, 134, 196, 0.6);
+  }
+  ul.players li.ready::before { background: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.9); }
+  ul.players li.dead { opacity: 0.5; text-decoration: line-through; }
+  ul.players li.dead::before { background: #7f1d1d; box-shadow: none; }
+  ul.players li.me { background: rgba(34, 211, 238, 0.08); border-color: rgba(34, 211, 238, 0.35); }
+
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tab {
+    padding: 7px 14px; font-size: 12.5px;
+    background: rgba(20, 40, 65, 0.7);
+    border: 1px solid var(--border);
+    border-radius: 9px; color: #bcd5ee;
+    transition: all 0.14s; font-weight: 600;
+    font-family: inherit;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .tab .cdot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--tc);
+    box-shadow: 0 0 6px var(--tc);
+  }
+  .tab:hover:not(.sel) { border-color: var(--border-2); color: #e6f0fb; }
+  .tab.sel {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 30%, #1e293b),
+                                       color-mix(in srgb, var(--tc) 15%, #0f172a));
+    border-color: var(--tc);
+    color: #fff;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--tc) 40%, transparent);
+  }
+  .tab.dead { opacity: 0.5; }
+
+  .log {
+    max-height: 460px; overflow-y: auto;
+    font-size: 12.5px; line-height: 1.55;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(96, 165, 250, 0.3) transparent;
+  }
+  .log::-webkit-scrollbar { width: 6px; }
+  .log::-webkit-scrollbar-thumb {
+    background: rgba(96, 165, 250, 0.3); border-radius: 3px;
+  }
+  .log div {
+    padding: 7px 10px; margin-bottom: 4px;
+    border-radius: 8px;
+    background: rgba(20, 40, 65, 0.5);
+    border-left: 3px solid rgba(100, 165, 220, 0.4);
+    color: #c9d9e9;
+  }
+  .log div:first-child {
+    background: rgba(34, 211, 238, 0.1);
+    border-left-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.2);
+  }
+  .log div.log-miss { border-left-color: #64748b; color: #b8c5d3; }
+  .log div.log-hit { border-left-color: #f97316; color: #ffd9b3; }
+  .log div.log-danger {
+    border-left-color: #ef4444; color: #ffd4d4;
+    background: rgba(127, 29, 29, 0.22);
+  }
+  .log div.log-win {
+    border-left-color: var(--gold); color: #ffe7a8;
+    background: rgba(120, 80, 0, 0.22);
+  }
+
+  .legend {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    margin-top: 12px; font-size: 11.5px; color: var(--text-dim);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend span::before {
+    content: ''; width: 12px; height: 12px; border-radius: 3px;
+    background: #122943;
+  }
+  .legend span.ship::before { background: linear-gradient(180deg, #7c93b0, #4a6480); }
+  .legend span.miss::before {
+    background: #0a1a2b; box-shadow: inset 0 0 0 1px #3b5a7a, 0 0 6px #3b5a7a;
+  }
+  .legend span.hit::before {
+    background: radial-gradient(circle, #fb7185, #b91c1c);
+    box-shadow: 0 0 6px #ef4444;
+  }
+  .legend span.sunk::before {
+    background: linear-gradient(180deg, #5c1010, #2b0505);
+    box-shadow: inset 0 0 0 1px #f87171;
+  }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .actions .btn { flex: 0 0 auto; }
+
+  .placing-note {
+    font-size: 13px; padding: 11px 14px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(180, 83, 9, 0.04));
+    border: 1px solid rgba(251, 191, 36, 0.28);
+    margin-bottom: 14px; color: #fde4b3;
+  }
+  .placing-note b { color: #ffe7a8; }
+  .placing-note.ok {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(5, 150, 105, 0.05));
+    border-color: rgba(52, 211, 153, 0.4);
+    color: #a7f3d0;
+  }
+  .placing-note.ok b { color: #6ee7b7; }
+
+  .ready-badge {
+    padding: 4px 10px; border-radius: 8px; font-size: 11px;
+    background: rgba(16, 185, 129, 0.18); color: #6ee7b7;
+    border: 1px solid rgba(52, 211, 153, 0.45);
+    font-weight: 700; letter-spacing: 0.5px;
+  }
+
+  .conn-panel { text-align: center; padding: 40px 20px; }
+  .conn-panel .spinner {
+    width: 42px; height: 42px; margin: 0 auto 16px;
+    border: 3px solid rgba(96, 165, 250, 0.15);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-
-<header>
-  <h1>⚓ Морской бой</h1>
-  <div class="header-right">
-    <span class="code" id="game-code">----</span>
-    <span class="phase-badge phase-lobby" id="phase-badge">Лобби</span>
-    <span class="turn-info" id="turn-info"></span>
-    <button class="secondary" id="leave-btn" style="background:#475569;">Выйти</button>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">⚓</div>
+      <div>
+        <h1>Морской бой</h1>
+        <div class="sub">Четыре флота</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Код</span>
+        <span class="value mono" id="roomCode">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Фаза</span>
+        <span class="value" id="phaseInfo">—</span>
+      </div>
+      <button class="btn ghost" id="leaveBtn">Выйти</button>
+    </div>
+  </header>
+  <div id="msg" class="toast"></div>
+  <div id="root">
+    <div class="card conn-panel">
+      <div class="spinner"></div>
+      <div class="hint">Подключение к партии…</div>
+    </div>
   </div>
-</header>
-
-<main>
-  <section class="col-left">
-    <div class="panel">
-      <h2>Моё поле</h2>
-      <div class="board" id="board-mine"></div>
-    </div>
-
-    <div class="panel" id="placement-panel" style="display:none">
-      <h2>Расстановка</h2>
-      <div class="fleet-list" id="fleet-list"></div>
-      <div class="controls">
-        <button class="secondary" id="btn-rotate">Повернуть (ПКМ)</button>
-        <button class="secondary" id="btn-random">Случайно</button>
-        <button class="success" id="btn-ready" disabled>Готов</button>
-      </div>
-    </div>
-  </section>
-
-  <section class="col-center">
-    <div class="panel" id="center-panel">
-      <h2 id="center-title">Противники</h2>
-      <div id="center-content">
-        <div class="message" id="center-message">Ожидание игроков…</div>
-        <div id="enemy-tabs" class="enemy-tabs" style="display:none"></div>
-        <div class="board" id="board-enemy" style="display:none"></div>
-      </div>
-    </div>
-  </section>
-
-  <aside class="col-right">
-    <div class="panel">
-      <h2>Игроки</h2>
-      <ul class="players-list" id="players-list"></ul>
-    </div>
-
-    <div class="panel">
-      <h2>Статистика</h2>
-      <div id="chart-wrap"><canvas id="chart"></canvas></div>
-    </div>
-
-    <div class="panel">
-      <h2>Журнал</h2>
-      <div class="log" id="log"></div>
-    </div>
-  </aside>
-</main>
-
-<div id="toast"></div>
-
-<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
-
-{% raw %}
+</div>
 <script>
 (function () {
   'use strict';
 
-  const BOARD = 10;
-  const FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+  var FIELD = 10;
+  var COLS = 'ABCDEFGHIJ';
+  var PLAYER_COLORS = ['#3b82f6', '#ec4899', '#a855f7', '#f59e0b'];
+  var STATE = null;
+  var selectedEnemy = null;
+  var selectedShipIdx = null;
+  var placementHoriz = true;
+  var lastJson = '';
+  var msgTimer = null;
 
-  const $ = s => document.querySelector(s);
-  const boardMine   = $('#board-mine');
-  const boardEnemy  = $('#board-enemy');
-  const enemyTabs   = $('#enemy-tabs');
-  const centerMsg   = $('#center-message');
-  const playersList = $('#players-list');
-  const logEl       = $('#log');
-  const toastEl     = $('#toast');
-
-  let state = null;
-  let pollTimer = null;
-  let pollBusy = false;
-
-  let placed = new Array(FLEET.length).fill(null);
-  let sel    = 0;
-  let dir    = 'h';
-  let hover  = null;
-  let activeEnemy = 0;
-  let chart = null;
-
-  function toast(msg) {
-    toastEl.textContent = msg;
-    toastEl.classList.add('show');
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => toastEl.classList.remove('show'), 2200);
+  function colorOf(slot) {
+    if (slot === null || slot === undefined) return '#64748b';
+    return PLAYER_COLORS[slot % PLAYER_COLORS.length];
   }
 
-  async function api(path, body) {
-    const res = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body || {})
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
     });
-    try { return await res.json(); }
-    catch (e) { return { ok: false, error: 'Ошибка сети' }; }
+  }
+
+  function flash(text) {
+    var m = document.getElementById('msg');
+    m.textContent = text;
+    m.style.display = 'block';
+    clearTimeout(msgTimer);
+    msgTimer = setTimeout(function () { m.style.display = 'none'; }, 2600);
   }
 
   function goHome() {
@@ -346,426 +616,619 @@
       .catch(function () {})
       .then(function () { window.location.href = '/'; });
   }
+  document.getElementById('leaveBtn').onclick = goHome;
 
-  $('#leave-btn').addEventListener('click', async () => {
-    try { await api('/api/leave', {}); } catch (e) {}
-    goHome();
-  });
-
-  function localShipCells(size, r, c, d) {
-    const out = [];
-    for (let i = 0; i < size; i++) out.push(d === 'h' ? [r, c + i] : [r + i, c]);
-    return out;
+  function post(action, extra) {
+    var body = Object.assign({ action: action }, extra || {});
+    return fetch('/ms/api/action', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      if (r.status === 404) { goHome(); return null; }
+      return r.json().then(function (j) {
+        if (!j.ok) { flash(j.error || 'Ошибка'); return null; }
+        STATE = j.state;
+        render(true);
+        return j.state;
+      });
+    }).catch(function () { return null; });
   }
 
-  function localPlacedMap() {
-    const m = new Map();
-    placed.forEach((p, i) => {
-      if (!p) return;
-      localShipCells(FLEET[i], p.r, p.c, p.dir).forEach(([r, c]) => m.set(r + ',' + c, i));
+  /* ============ LOBBY ============ */
+  function renderLobby() {
+    var html = '<div class="card" style="max-width:520px;margin:0 auto">';
+    html += '<h2>Ожидание игроков</h2>';
+    html += '<div class="placing-note">Поделитесь кодом партии: <b>' + esc(STATE.game_id) + '</b></div>';
+    html += '<ul class="players">';
+    STATE.names.forEach(function (n, i) {
+      var occ = STATE.occupied[i];
+      var cls = occ ? 'me' : '';
+      html += '<li class="' + cls + '">' + (occ ? esc(n) : '<i style="color:#516b85">свободное место</i>') + '</li>';
     });
-    return m;
+    html += '</ul>';
+    html += '<p class="hint">Игра начнётся, когда все места будут заняты.</p>';
+    html += '</div>';
+    return html;
   }
 
-  function canPlaceLocal(r, c, size, d) {
-    const cells = localShipCells(size, r, c, d);
-    for (const [rr, cc] of cells) {
-      if (rr < 0 || rr >= BOARD || cc < 0 || cc >= BOARD) return false;
+  /* ============ PLACING ============ */
+  function buildShipMap() {
+    var shipMap = {};
+    STATE.placement.forEach(function (item) {
+      if (item.placed) {
+        item.cells.forEach(function (rc) { shipMap[rc[0] + ',' + rc[1]] = item.idx; });
+      }
+    });
+    return shipMap;
+  }
+
+  function placedCount() {
+    var n = 0;
+    STATE.placement.forEach(function (it) { if (it.placed) n++; });
+    return n;
+  }
+
+  function autoSelectShip() {
+    if (selectedShipIdx !== null) {
+      var cur = STATE.placement.filter(function (p) { return p.idx === selectedShipIdx; })[0];
+      if (cur && !cur.placed) return;
     }
-    const map = localPlacedMap();
-    for (const [rr, cc] of cells) {
-      for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-          if (map.has((rr + dr) + ',' + (cc + dc))) return false;
+    var unplaced = STATE.placement.filter(function (p) { return !p.placed; });
+    if (!unplaced.length) { selectedShipIdx = null; return; }
+    unplaced.sort(function (a, b) { return b.size - a.size; });
+    selectedShipIdx = unplaced[0].idx;
+  }
+
+  function renderPlacementBoard() {
+    var shipMap = buildShipMap();
+    var html = '<table class="board" id="placementBoard"><tr><th></th>';
+    for (var c = 0; c < FIELD; c++) html += '<th>' + COLS[c] + '</th>';
+    html += '</tr>';
+    for (var r = 0; r < FIELD; r++) {
+      html += '<tr><th>' + (r + 1) + '</th>';
+      for (var cc = 0; cc < FIELD; cc++) {
+        var k = r + ',' + cc;
+        var cls = 'cell';
+        if (shipMap[k] !== undefined) cls += ' ship';
+        html += '<td class="' + cls + '" data-r="' + r + '" data-c="' + cc + '"></td>';
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+    return html;
+  }
+
+  function renderDock() {
+    var html = '<div class="dock">';
+    STATE.placement.forEach(function (item) {
+      var cls = 'dock-ship';
+      if (item.placed) cls += ' placed';
+      if (selectedShipIdx === item.idx) cls += ' selected';
+      html += '<div class="' + cls + '" data-idx="' + item.idx + '">';
+      html += '<div class="blocks">';
+      for (var i = 0; i < item.size; i++) html += '<span></span>';
+      html += '</div>';
+      html += '<span class="sz">×' + item.size + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderPlacing() {
+    autoSelectShip();
+    var placed = placedCount();
+    var total = STATE.placement.length;
+    var allPlaced = placed === total;
+
+    var html = '<div class="layout" style="grid-template-columns: 1fr 380px">';
+
+    html += '<div class="card"><h2>Ваше поле</h2>';
+    var noteCls = STATE.my_ready ? ' placing-note ok' : (allPlaced ? ' placing-note ok' : ' placing-note');
+    html += '<div class="' + noteCls.trim() + '">';
+    if (STATE.my_ready) {
+      html += 'Вы <b>готовы</b>. Ожидание остальных игроков…';
+    } else if (allPlaced) {
+      html += 'Все корабли расставлены. Нажмите <b>«Готов»</b>.';
+    } else {
+      html += 'Выберите корабль в доке, поставьте его на поле. ' +
+              '<b>ПКМ</b> — повернуть. Клик по кораблю — снять.';
+    }
+    html += '</div>';
+    html += renderPlacementBoard();
+    html += '<div class="legend"><span class="ship">ваш корабль</span></div>';
+    html += '</div>';
+
+    html += '<div class="card"><h2>Флот · ' + placed + ' / ' + total + '</h2>';
+    html += renderDock();
+    if (!STATE.my_ready) {
+      html += '<div class="actions">';
+      html += '<button id="rotateBtn" class="btn ghost sm">⟳ Повернуть</button>';
+      html += '<button id="clearBtn" class="btn ghost sm">Очистить</button>';
+      html += '<button id="randBtn" class="btn ghost sm">Случайно</button>';
+      html += '</div>';
+      html += '<div class="actions">';
+      html += '<button id="readyBtn" class="btn success" style="flex:1 1 100%"' +
+              (allPlaced ? '' : ' disabled') + '>Готов к бою</button>';
+      html += '</div>';
+      if (!allPlaced) {
+        html += '<p class="hint">Кнопка «Готов» станет доступной, когда все <b>' +
+                total + '</b> кораблей будут на поле.</p>';
+      }
+    } else {
+      html += '<div style="margin-top:8px"><span class="ready-badge">✓ Вы готовы</span></div>';
+    }
+    html += '<h2 style="margin-top:22px">Игроки</h2>';
+    html += '<ul class="players">';
+    STATE.names.forEach(function (n, i) {
+      if (!STATE.occupied[i]) return;
+      var cls = '';
+      if (STATE.eliminated && STATE.eliminated[i]) cls += ' dead';
+      else if (STATE.ready[i]) cls += ' ready';
+      if (i === STATE.slot) cls += ' me';
+      var status = STATE.eliminated[i] ? ' — выбыл' : (STATE.ready[i] ? ' — готов' : ' — расставляет');
+      html += '<li class="' + cls.trim() + '">' + esc(n) + status + '</li>';
+    });
+    html += '</ul>';
+    html += '</div></div>';
+    return html;
+  }
+
+  /* ============ BATTLE ============ */
+  function ownBoardHtml(b) {
+    var shipCells = {}, hitCells = {}, missCells = {}, sunkCells = {};
+    (b && b.ships ? b.ships : []).forEach(function (s) {
+      s.cells.forEach(function (rc) { shipCells[rc[0] + ',' + rc[1]] = true; });
+      (s.hit_cells || []).forEach(function (rc) {
+        hitCells[rc[0] + ',' + rc[1]] = { by: rc[2] };
+      });
+      if (s.sunk) s.cells.forEach(function (rc) { sunkCells[rc[0] + ',' + rc[1]] = true; });
+    });
+    (b && b.misses ? b.misses : []).forEach(function (rc) {
+      missCells[rc[0] + ',' + rc[1]] = { by: rc[2] };
+    });
+
+    var html = '<table class="board"><tr><th></th>';
+    for (var c = 0; c < FIELD; c++) html += '<th>' + COLS[c] + '</th>';
+    html += '</tr>';
+    for (var r = 0; r < FIELD; r++) {
+      html += '<tr><th>' + (r + 1) + '</th>';
+      for (var cc = 0; cc < FIELD; cc++) {
+        var k = r + ',' + cc;
+        var cls = 'cell';
+        var style = '';
+        if (shipCells[k]) cls += ' ship';
+        if (hitCells[k]) {
+          cls += ' hit';
+          style = ' style="--sc:' + colorOf(hitCells[k].by) + '"';
+        }
+        if (sunkCells[k]) cls += ' sunk';
+        if (missCells[k]) {
+          cls += ' miss';
+          if (!hitCells[k]) style = ' style="--sc:' + colorOf(missCells[k].by) + '"';
+        }
+        html += '<td class="' + cls + '"' + style + '></td>';
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+    return html;
+  }
+
+  function enemyBoardHtml(e) {
+    var shotMap = {}, sunkMap = {};
+    (e.cells || []).forEach(function (t) {
+      shotMap[t[0] + ',' + t[1]] = { res: t[2], by: t[3] };
+    });
+    (e.sunk || []).forEach(function (rc) { sunkMap[rc[0] + ',' + rc[1]] = true; });
+    var active = STATE.can_act && !e.eliminated;
+
+    var html = '<table class="board enemy' + (active ? ' active' : '') + '"><tr><th></th>';
+    for (var c = 0; c < FIELD; c++) html += '<th>' + COLS[c] + '</th>';
+    html += '</tr>';
+    for (var r = 0; r < FIELD; r++) {
+      html += '<tr><th>' + (r + 1) + '</th>';
+      for (var cc = 0; cc < FIELD; cc++) {
+        var k = r + ',' + cc;
+        var s = shotMap[k];
+        var cls = 'cell';
+        var style = '';
+        if (s && s.res === 'miss') {
+          cls += ' miss';
+          style = ' style="--sc:' + colorOf(s.by) + '"';
+        } else if (s && s.res === 'hit') {
+          cls += ' hit';
+          style = ' style="--sc:' + colorOf(s.by) + '"';
+        }
+        if (sunkMap[k]) cls += ' sunk';
+        html += '<td class="' + cls + '"' + style + '" data-target="' + e.slot +
+                '" data-r="' + r + '" data-c="' + cc + '"></td>';
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+    return html;
+  }
+
+  function renderStatsStrip() {
+    var html = '<div class="stats-strip">';
+    var n = STATE.num_players;
+    for (var i = 0; i < n; i++) {
+      if (!STATE.occupied[i]) continue;
+      var isSelf = i === STATE.slot;
+      var isDead = STATE.eliminated[i];
+      var isTurn = STATE.turn === i && !isDead;
+      var alive = 0, total = 10;
+      if (isSelf) {
+        alive = STATE.my_board ? STATE.my_board.alive_ships : 0;
+        total = STATE.my_board ? STATE.my_board.total_ships : 10;
+      } else {
+        var e = (STATE.enemies || []).filter(function (x) { return x.slot === i; })[0];
+        if (e) { alive = e.alive_ships; total = e.total_ships; }
+      }
+      var lvl = 'full';
+      if (alive === 0) lvl = 'low';
+      else if (alive <= 3) lvl = 'low';
+      else if (alive <= 6) lvl = 'mid';
+
+      var cls = 'pcard';
+      if (isTurn) cls += ' turn';
+      if (isDead) cls += ' dead';
+      if (isSelf) cls += ' me';
+
+      html += '<div class="' + cls + '" style="--pc:' + colorOf(i) + '">';
+      if (isTurn) html += '<div class="turn-badge">Ход</div>';
+      html += '<div class="pname">';
+      html += '<span class="tag" style="background:' + colorOf(i) + '">' +
+              String.fromCharCode(65 + i) + '</span>';
+      html += esc(STATE.names[i] || ('Игрок ' + (i + 1)));
+      if (isSelf) html += ' <span style="color:#7f9cbb;font-size:11px;font-weight:500">(вы)</span>';
+      if (isDead) html += ' <span class="deadmark">✝</span>';
+      html += '</div>';
+      html += '<div class="prow"><span>Корабли</span>' +
+              '<span class="num ' + lvl + '">' + alive + ' / ' + total + '</span></div>';
+      html += '<div class="ships">';
+      for (var k = 0; k < total; k++) {
+        html += '<i class="' + (k < alive ? '' : 'off') + '"></i>';
+      }
+      html += '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderBattle() {
+    var html = '';
+
+    if (STATE.phase === 'finished') {
+      html += '<div class="banner win"><span class="dot"></span>';
+      if (STATE.winner !== null && STATE.winner !== undefined) {
+        html += '🏆 Победитель: <b>&nbsp;' + esc(STATE.names[STATE.winner]) + '</b>';
+      } else {
+        html += 'Бой завершён';
+      }
+      html += '</div>';
+    } else {
+      var t = STATE.turn;
+      var mine = STATE.is_my_turn && !STATE.eliminated[STATE.slot];
+      html += '<div class="banner' + (mine ? ' mine' : '') + '">';
+      html += '<span class="dot" style="background:' + colorOf(t) +
+              ';box-shadow:0 0 14px ' + colorOf(t) + '"></span>';
+      if (mine) {
+        html += '<b>Ваш ход</b> — выберите цель и клетку';
+        html += '<span class="right">При попадании стреляете ещё раз</span>';
+      } else {
+        html += 'Ход: <b>&nbsp;' + esc(STATE.names[t] || '—') + '</b>';
+      }
+      html += '</div>';
+    }
+
+    html += renderStatsStrip();
+
+    html += '<div class="layout">';
+
+    html += '<div class="card"><h2>Ваш флот</h2>' + ownBoardHtml(STATE.my_board);
+    html += '<div class="legend">';
+    html += '<span class="ship">корабль</span>';
+    html += '<span class="hit">попадание</span>';
+    html += '<span class="sunk">уничтожен</span>';
+    html += '</div></div>';
+
+    html += '<div class="card"><h2>Поле противника</h2>';
+    var enemies = STATE.enemies || [];
+    if (enemies.length) {
+      if (selectedEnemy === null || !enemies.some(function (e) { return e.slot === selectedEnemy; })) {
+        var alive = enemies.filter(function (e) { return !e.eliminated; })[0];
+        selectedEnemy = alive ? alive.slot : enemies[0].slot;
+      }
+      html += '<div class="tabs">';
+      enemies.forEach(function (e) {
+        var cls = 'tab';
+        if (e.slot === selectedEnemy) cls += ' sel';
+        if (e.eliminated) cls += ' dead';
+        html += '<button class="' + cls + '" data-tab="' + e.slot +
+                '" style="--tc:' + colorOf(e.slot) + '">';
+        html += '<span class="cdot"></span>';
+        html += esc(e.name) + (e.eliminated ? ' ✝' : '');
+        html += '</button>';
+      });
+      html += '</div>';
+      var cur = enemies.filter(function (e) { return e.slot === selectedEnemy; })[0];
+      if (cur) {
+        html += enemyBoardHtml(cur);
+        html += '<div class="legend">';
+        html += '<span class="miss">мимо</span>';
+        html += '<span class="hit">попал</span>';
+        html += '<span class="sunk">убит</span>';
+        html += '</div>';
+        if (cur.eliminated) {
+          html += '<p class="hint">Этот игрок выбыл.</p>';
+        } else if (STATE.can_act) {
+          html += '<p class="hint">Кликните по клетке, чтобы выстрелить.</p>';
+        }
+      }
+    }
+    html += '</div>';
+
+    html += '<div class="card log-card"><h2>Журнал боя</h2><div class="log">';
+    var log = STATE.log || [];
+    for (var i = log.length - 1; i >= 0; i--) {
+      html += '<div class="' + logClass(log[i]) + '">' + esc(log[i]) + '</div>';
+    }
+    html += '</div>';
+    if (STATE.phase === 'finished') {
+      html += '<div class="actions" style="margin-top:14px">';
+      html += '<button id="resetBtn" class="btn gold" style="flex:1 1 100%">Новая партия</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  function logClass(text) {
+    if (/Победа|выбывает|уничтожен|убит/i.test(text)) return 'log-danger';
+    if (/попал/i.test(text)) return 'log-hit';
+    if (/мимо/i.test(text)) return 'log-miss';
+    if (/Бой начался|Новая партия|Все на месте/i.test(text)) return 'log-win';
+    return '';
+  }
+
+  /* ============ RENDER ============ */
+  function render(force) {
+    var root = document.getElementById('root');
+    var info = document.getElementById('phaseInfo');
+
+    if (!STATE || !STATE.joined) {
+      if (force || lastJson !== 'nope') {
+        root.innerHTML = '<div class="card conn-panel"><div class="spinner"></div>' +
+                         '<div class="hint">Подключение к партии…</div></div>';
+        lastJson = 'nope';
+      }
+      info.textContent = '';
+      return;
+    }
+
+    var json = JSON.stringify(STATE);
+    if (!force && json === lastJson) return;
+    lastJson = json;
+
+    if (STATE.phase === 'lobby') {
+      info.textContent = 'Лобби';
+      root.innerHTML = renderLobby();
+    } else if (STATE.phase === 'placing') {
+      info.textContent = 'Расстановка';
+      root.innerHTML = renderPlacing();
+    } else {
+      info.textContent = STATE.phase === 'finished' ? 'Завершено' : 'Бой';
+      root.innerHTML = renderBattle();
+    }
+    bind();
+  }
+
+  /* ============ PREVIEW ============ */
+  function clearPreview() {
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#placementBoard td.preview-ok, #placementBoard td.preview-bad'),
+      function (el) { el.classList.remove('preview-ok', 'preview-bad'); }
+    );
+  }
+
+  function previewCells(r, c) {
+    var item = STATE.placement.filter(function (p) { return p.idx === selectedShipIdx; })[0];
+    if (!item || item.placed) return null;
+    var size = item.size;
+    var cells = [];
+    for (var i = 0; i < size; i++) {
+      var rr = placementHoriz ? r : r + i;
+      var cc = placementHoriz ? c + i : c;
+      if (rr < 0 || rr >= FIELD || cc < 0 || cc >= FIELD) return null;
+      cells.push([rr, cc]);
+    }
+    return cells;
+  }
+
+  function canPlaceAt(cells) {
+    if (!cells) return false;
+    var occupied = {};
+    STATE.placement.forEach(function (item) {
+      if (item.placed && item.idx !== selectedShipIdx) {
+        item.cells.forEach(function (rc) { occupied[rc[0] + ',' + rc[1]] = true; });
+      }
+    });
+    for (var i = 0; i < cells.length; i++) {
+      var rr = cells[i][0], cc = cells[i][1];
+      for (var dr = -1; dr <= 1; dr++) {
+        for (var dc = -1; dc <= 1; dc++) {
+          if (occupied[(rr + dr) + ',' + (cc + dc)]) return false;
         }
       }
     }
     return true;
   }
 
-  function ensureBoardCells(container) {
-    if (container.childElementCount !== BOARD * BOARD) {
-      container.innerHTML = '';
-      for (let r = 0; r < BOARD; r++) {
-        for (let c = 0; c < BOARD; c++) {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.dataset.r = r;
-          cell.dataset.c = c;
-          container.appendChild(cell);
-        }
-      }
-    }
-  }
+  /* ============ BIND ============ */
+  function bind() {
+    var rand = document.getElementById('randBtn');
+    if (rand) rand.onclick = function () { post('randomize'); };
 
-  function renderMinePlacement() {
-    ensureBoardCells(boardMine);
-    const map = localPlacedMap();
-    const preview = new Map();
-    if (hover && sel != null) {
-      const size = FLEET[sel];
-      const ok = canPlaceLocal(hover.r, hover.c, size, dir);
-      for (const [r, c] of localShipCells(size, hover.r, hover.c, dir)) {
-        if (r >= 0 && r < BOARD && c >= 0 && c < BOARD) preview.set(r + ',' + c, ok);
-      }
-    }
-    boardMine.querySelectorAll('.cell').forEach(cell => {
-      const r = +cell.dataset.r, c = +cell.dataset.c, key = r + ',' + c;
-      cell.className = 'cell';
-      if (map.has(key)) cell.classList.add('ship');
-      if (preview.has(key)) cell.classList.add(preview.get(key) ? 'preview-ok' : 'preview-bad');
-    });
-  }
-
-  function renderMineBattle() {
-    ensureBoardCells(boardMine);
-    const grid = state.my_grid;
-    boardMine.querySelectorAll('.cell').forEach(cell => {
-      const r = +cell.dataset.r, c = +cell.dataset.c;
-      cell.className = 'cell disabled';
-      const v = grid[r][c];
-      if (v === 1) cell.classList.add('ship');
-      else if (v === 2) cell.classList.add('miss');
-      else if (v === 3) cell.classList.add('hit');
-    });
-  }
-
-  function renderEnemyBoard() {
-    const enemy = state.enemies[activeEnemy];
-    if (!enemy) return;
-    ensureBoardCells(boardEnemy);
-    const myTurn = state.phase === 'battle' && state.turn === state.you && state.players[state.you].alive;
-
-    boardEnemy.querySelectorAll('.cell').forEach(cell => {
-      const r = +cell.dataset.r, c = +cell.dataset.c;
-      const v = enemy.cells[r + ',' + c];
-      cell.className = 'cell';
-      if (v === 'hit') cell.classList.add('hit');
-      else if (v === 'miss') cell.classList.add('miss');
-      else if (v === 'ship') cell.classList.add('ship-enemy');
-      if (!myTurn || v || !enemy.alive) cell.classList.add('disabled');
-    });
-  }
-
-  function renderFleetList() {
-    const el = $('#fleet-list');
-    el.innerHTML = FLEET.map((size, i) => {
-      const isPlaced = !!placed[i];
-      const isSel = i === sel && !isPlaced;
-      const cls = ['fleet-item'];
-      if (isPlaced) cls.push('placed');
-      if (isSel) cls.push('sel');
-      return '<div class="' + cls.join(' ') + '" data-i="' + i + '">' +
-             '■'.repeat(size) + '</div>';
-    }).join('');
-  }
-
-  function renderPlayers() {
-    playersList.innerHTML = state.players.map((p, i) => {
-      const cls = [];
-      if (i === state.you) cls.push('me');
-      if (!p.alive) cls.push('dead');
-      if (state.phase === 'battle' && state.turn === i) cls.push('turn');
-
-      let status = '';
-      if (state.phase === 'lobby') {
-        status = '<span class="tag">в лобби</span>';
-      } else if (state.phase === 'placement') {
-        status = p.ready ? '<span class="tag ready">готов</span>'
-                         : '<span class="tag wait">ставит</span>';
-      } else {
-        status = '<span class="tag">' + p.ships_left + '/' + p.ships_total + '</span>';
-      }
-      const me = i === state.you ? ' (вы)' : '';
-      return '<li class="' + cls.join(' ') + '"><span>' + escapeHtml(p.name) + me + '</span>' + status + '</li>';
-    }).join('');
-  }
-
-  function renderEnemyTabs() {
-    if (state.enemies.length <= 1) { enemyTabs.style.display = 'none'; return; }
-    enemyTabs.style.display = 'flex';
-    enemyTabs.innerHTML = state.enemies.map((e, i) => {
-      const cls = ['enemy-tab'];
-      if (i === activeEnemy) cls.push('active');
-      if (!e.alive) cls.push('dead');
-      return '<div class="' + cls.join(' ') + '" data-i="' + i + '">' +
-             escapeHtml(e.name) + ' · ' + e.ships_left + '</div>';
-    }).join('');
-  }
-
-  function renderLog() {
-    const lines = state.log.map(l =>
-      '<div><span class="t">' + l.t + '</span>' + escapeHtml(l.text) + '</div>'
-    );
-    const atBottom = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 30;
-    logEl.innerHTML = lines.join('');
-    if (atBottom) logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  function renderChart() {
-    const labels = state.players.map(p => p.name);
-    const data = {
-      labels,
-      datasets: [
-        { label: 'Попадания', data: state.players.map(p => p.stats.hits),   backgroundColor: '#dc2626' },
-        { label: 'Промахи',   data: state.players.map(p => p.stats.misses), backgroundColor: '#3b82f6' },
-        { label: 'Потоплено', data: state.players.map(p => p.stats.sunk),   backgroundColor: '#f59e0b' }
-      ]
+    var clear = document.getElementById('clearBtn');
+    if (clear) clear.onclick = function () {
+      selectedShipIdx = null;
+      post('clear');
     };
-    if (typeof Chart === 'undefined') return;
-    if (!chart) {
-      const ctx = document.getElementById('chart').getContext('2d');
-      chart = new Chart(ctx, {
-        type: 'bar',
-        data,
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 11 }, boxWidth: 12 } } },
-          scales: {
-            x: { ticks: { color: '#cbd5e1', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.06)' } },
-            y: { beginAtZero: true, ticks: { color: '#cbd5e1', precision: 0, font: { size: 11 } },
-                 grid: { color: 'rgba(255,255,255,0.06)' } }
-          }
+
+    var rot = document.getElementById('rotateBtn');
+    if (rot) rot.onclick = function () {
+      placementHoriz = !placementHoriz;
+      render(true);
+    };
+
+    var rdy = document.getElementById('readyBtn');
+    if (rdy) rdy.onclick = function () {
+      if (placedCount() !== STATE.placement.length) {
+        flash('Сначала расставьте все корабли');
+        return;
+      }
+      post('ready');
+    };
+
+    var rst = document.getElementById('resetBtn');
+    if (rst) rst.onclick = function () {
+      fetch('/ms/api/reset', { method: 'POST', credentials: 'same-origin' })
+        .then(function (r) { if (r.status === 404) { goHome(); return null; } return r.json(); })
+        .then(function (j) {
+          if (j && j.ok) { STATE = j.state; lastJson = ''; render(true); }
+        })
+        .catch(function () {});
+    };
+
+    Array.prototype.forEach.call(document.querySelectorAll('.dock-ship'), function (el) {
+      el.onclick = function () {
+        var idx = parseInt(el.getAttribute('data-idx'), 10);
+        var item = STATE.placement.filter(function (p) { return p.idx === idx; })[0];
+        if (!item) return;
+        if (item.placed) {
+          selectedShipIdx = null;
+          post('remove_ship', { idx: idx });
+        } else {
+          selectedShipIdx = (selectedShipIdx === idx) ? null : idx;
+          render(true);
         }
+      };
+    });
+
+    var pBoard = document.getElementById('placementBoard');
+    if (pBoard) {
+      pBoard.addEventListener('mouseleave', clearPreview);
+
+      pBoard.addEventListener('contextmenu', function (e) {
+        if (!STATE || STATE.phase !== 'placing' || STATE.my_ready) return;
+        e.preventDefault();
+        placementHoriz = !placementHoriz;
+        clearPreview();
+        render(true);
       });
-    } else {
-      chart.data = data;
-      chart.update('none');
+
+      Array.prototype.forEach.call(pBoard.querySelectorAll('td.cell'), function (td) {
+        td.addEventListener('mouseenter', function () {
+          clearPreview();
+          if (selectedShipIdx === null) return;
+          var r = parseInt(td.getAttribute('data-r'), 10);
+          var c = parseInt(td.getAttribute('data-c'), 10);
+          var cells = previewCells(r, c);
+          if (!cells) return;
+          var ok = canPlaceAt(cells);
+          var cls = ok ? 'preview-ok' : 'preview-bad';
+          cells.forEach(function (rc) {
+            var cell = pBoard.querySelector('td[data-r="' + rc[0] + '"][data-c="' + rc[1] + '"]');
+            if (cell) cell.classList.add(cls);
+          });
+        });
+
+        td.addEventListener('click', function () {
+          if (STATE.my_ready) return;
+          var r = parseInt(td.getAttribute('data-r'), 10);
+          var c = parseInt(td.getAttribute('data-c'), 10);
+          var occupying = null;
+          STATE.placement.forEach(function (item) {
+            if (item.placed && occupying === null) {
+              for (var i = 0; i < item.cells.length; i++) {
+                if (item.cells[i][0] === r && item.cells[i][1] === c) {
+                  occupying = item.idx;
+                  return;
+                }
+              }
+            }
+          });
+          if (occupying !== null) {
+            selectedShipIdx = null;
+            post('remove_ship', { idx: occupying });
+            return;
+          }
+          if (selectedShipIdx === null) {
+            flash('Выберите корабль в доке');
+            return;
+          }
+          post('place_ship', {
+            idx: selectedShipIdx, r: r, c: c, horiz: placementHoriz
+          });
+        });
+      });
     }
+
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (btn) {
+      btn.onclick = function () {
+        selectedEnemy = parseInt(btn.getAttribute('data-tab'), 10);
+        render(true);
+      };
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll('td.cell[data-target]'), function (td) {
+      td.onclick = function () {
+        if (!STATE || !STATE.can_act) return;
+        if (td.classList.contains('miss') || td.classList.contains('hit') || td.classList.contains('sunk')) return;
+        post('shoot', {
+          target: parseInt(td.getAttribute('data-target'), 10),
+          r: parseInt(td.getAttribute('data-r'), 10),
+          c: parseInt(td.getAttribute('data-c'), 10)
+        });
+      };
+    });
   }
 
-  function renderHeader() {
-    $('#game-code').textContent = state.game_id;
-    const phaseNames = { lobby: 'Лобби', placement: 'Расстановка', battle: 'Бой', over: 'Игра окончена' };
-    const badge = $('#phase-badge');
-    badge.textContent = phaseNames[state.phase] || state.phase;
-    badge.className = 'phase-badge phase-' + state.phase;
-
-    const info = $('#turn-info');
-    if (state.phase === 'battle') {
-      if (state.turn === state.you) {
-        info.textContent = '▶ Ваш ход';
-        info.classList.add('you');
-      } else {
-        info.textContent = 'Ход: ' + state.players[state.turn].name;
-        info.classList.remove('you');
-      }
-    } else if (state.phase === 'over') {
-      const w = state.winner;
-      if (w === null) info.textContent = 'Ничья';
-      else if (w === state.you) { info.textContent = '🏆 Вы победили!'; info.classList.add('you'); }
-      else info.textContent = 'Победитель: ' + state.players[w].name;
-    } else {
-      info.textContent = '';
-      info.classList.remove('you');
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') &&
+        STATE && STATE.phase === 'placing' && !STATE.my_ready) {
+      placementHoriz = !placementHoriz;
+      clearPreview();
+      render(true);
     }
+  });
+
+  function tick() {
+    fetch('/ms/api/state', { credentials: 'same-origin' })
+      .then(function (r) {
+        if (r.status === 404) { goHome(); return null; }
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j) return;
+        if (!j.ok) { goHome(); return; }
+        STATE = j.state;
+        document.getElementById('roomCode').textContent = STATE.game_id || '—';
+        render(false);
+      })
+      .catch(function () {});
   }
 
-  function renderCenter() {
-    if (state.phase === 'lobby') {
-      enemyTabs.style.display = 'none';
-      boardEnemy.style.display = 'none';
-      centerMsg.style.display = 'block';
-      const n = state.players.length;
-      centerMsg.innerHTML =
-        '<div class="banner info">Ожидание игроков (' + n + '/' + state.max_players + ')</div>' +
-        '<p>Поделитесь кодом игры: <b>' + state.game_id + '</b></p>' +
-        '<p>Нужно минимум ' + state.min_players + ' игрока.</p>' +
-        '<div class="controls" style="justify-content:center;margin-top:14px">' +
-          '<button id="btn-start"' + (n >= state.min_players ? '' : ' disabled') + '>Начать игру</button>' +
-        '</div>';
-    } else if (state.phase === 'placement') {
-      enemyTabs.style.display = 'none';
-      boardEnemy.style.display = 'none';
-      centerMsg.style.display = 'block';
-      const ready = state.players.filter(p => p.ready).length;
-      const meReady = state.players[state.you].ready;
-      centerMsg.innerHTML =
-        '<div class="banner info">' + (meReady ? 'Вы готовы. Ожидание других…' : 'Расставьте корабли слева') + '</div>' +
-        '<p>Готовы: ' + ready + ' из ' + state.players.length + '</p>';
-    } else {
-      centerMsg.style.display = 'none';
-      renderEnemyTabs();
-      boardEnemy.style.display = 'grid';
-      renderEnemyBoard();
-    }
-  }
-
-  function render() {
-    if (!state) return;
-    if (activeEnemy >= state.enemies.length) activeEnemy = 0;
-    renderHeader();
-    renderPlayers();
-    renderFleetList();
-    renderCenter();
-    renderLog();
-    renderChart();
-
-    if (state.phase === 'placement') {
-      $('#placement-panel').style.display = 'block';
-      if (placed[sel]) {
-        const next = placed.findIndex(p => !p);
-        sel = next === -1 ? null : next;
-      }
-      renderMinePlacement();
-      const allPlaced = placed.every(p => p);
-      const btn = $('#btn-ready');
-      btn.disabled = !allPlaced;
-      btn.textContent = state.players[state.you].ready ? 'Готов ✓' : 'Готов';
-    } else {
-      $('#placement-panel').style.display = 'none';
-      renderMineBattle();
-    }
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, ch => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[ch]));
-  }
-
-  // --- События поля ---
-  boardMine.addEventListener('mousemove', e => {
-    if (!state || state.phase !== 'placement' || state.players[state.you].ready) return;
-    const t = e.target;
-    if (!t.classList || !t.classList.contains('cell')) return;
-    const r = +t.dataset.r, c = +t.dataset.c;
-    if (!hover || hover.r !== r || hover.c !== c) {
-      hover = { r, c };
-      renderMinePlacement();
-    }
-  });
-  boardMine.addEventListener('mouseleave', () => {
-    if (hover) { hover = null; renderMinePlacement(); }
-  });
-  boardMine.addEventListener('click', e => {
-    if (!state || state.phase !== 'placement' || state.players[state.you].ready) return;
-    const t = e.target;
-    if (!t.classList || !t.classList.contains('cell')) return;
-    const r = +t.dataset.r, c = +t.dataset.c;
-    const map = localPlacedMap();
-    const hitIdx = map.get(r + ',' + c);
-    if (hitIdx != null) {
-      placed[hitIdx] = null;
-      sel = hitIdx;
-      renderFleetList();
-      renderMinePlacement();
-      return;
-    }
-    if (sel == null) return;
-    if (!canPlaceLocal(r, c, FLEET[sel], dir)) { toast('Здесь нельзя поставить корабль'); return; }
-    placed[sel] = { r, c, dir };
-    const next = placed.findIndex(p => !p);
-    sel = next === -1 ? null : next;
-    renderFleetList();
-    renderMinePlacement();
-    $('#btn-ready').disabled = !placed.every(p => p);
-  });
-  boardMine.addEventListener('contextmenu', e => {
-    if (!state || state.phase !== 'placement' || state.players[state.you].ready) return;
-    e.preventDefault();
-    dir = (dir === 'h') ? 'v' : 'h';
-    renderMinePlacement();
-  });
-
-  boardEnemy.addEventListener('click', async e => {
-    if (!state || state.phase !== 'battle') return;
-    if (state.turn !== state.you) { toast('Сейчас не ваш ход'); return; }
-    const t = e.target;
-    if (!t.classList || !t.classList.contains('cell')) return;
-    if (t.classList.contains('disabled')) return;
-    const r = +t.dataset.r, c = +t.dataset.c;
-    const enemy = state.enemies[activeEnemy];
-    if (!enemy || !enemy.alive) return;
-    const res = await api('/bs/api/shoot', { target: enemy.index, r, c });
-    if (!res.ok) { toast(res.error || 'Ошибка выстрела'); return; }
-    if (res.state) applyState(res.state);
-    if (res.result === 'hit') toast('Попадание! Стреляйте снова');
-    else toast('Мимо…');
-  });
-
-  enemyTabs.addEventListener('click', e => {
-    const t = e.target.closest('.enemy-tab');
-    if (!t) return;
-    activeEnemy = +t.dataset.i;
-    renderEnemyTabs();
-    renderEnemyBoard();
-  });
-
-  $('#fleet-list').addEventListener('click', e => {
-    if (!state || state.phase !== 'placement' || state.players[state.you].ready) return;
-    const t = e.target.closest('.fleet-item');
-    if (!t) return;
-    const i = +t.dataset.i;
-    if (placed[i]) { placed[i] = null; sel = i; }
-    else sel = i;
-    renderFleetList();
-    renderMinePlacement();
-    $('#btn-ready').disabled = !placed.every(p => p);
-  });
-
-  $('#btn-rotate').addEventListener('click', () => {
-    dir = (dir === 'h') ? 'v' : 'h';
-    renderMinePlacement();
-  });
-  $('#btn-random').addEventListener('click', async () => {
-    const res = await api('/bs/api/place', { random: true });
-    if (!res.ok) { toast(res.error || 'Ошибка'); return; }
-    if (res.state) applyState(res.state);
-  });
-  $('#btn-ready').addEventListener('click', async () => {
-    const ships = placed.map((p, i) => ({ size: FLEET[i], r: p.r, c: p.c, dir: p.dir }));
-    const res = await api('/bs/api/place', { ships });
-    if (!res.ok) { toast(res.error || 'Ошибка расстановки'); return; }
-    if (res.state) applyState(res.state);
-  });
-
-  document.addEventListener('click', async e => {
-    if (e.target && e.target.id === 'btn-start') {
-      const res = await api('/bs/api/start', {});
-      if (!res.ok) { toast(res.error || 'Не удалось начать игру'); return; }
-      const s = await fetch('/bs/api/state').then(r => r.json());
-      if (s.ok) applyState(s.state);
-    }
-  });
-
-  function applyState(newState) {
-    const prevPhase = state ? state.phase : null;
-    state = newState;
-    if (prevPhase !== 'placement' && state.phase === 'placement') {
-      placed = new Array(FLEET.length).fill(null);
-      sel = 0; dir = 'h'; hover = null;
-    }
-    render();
-  }
-
-  async function poll() {
-    if (pollBusy) return;
-    pollBusy = true;
-    try {
-      const res = await fetch('/bs/api/state');
-      if (res.status === 404) { clearInterval(pollTimer); goHome(); return; }
-      const data = await res.json();
-      if (!data.ok) { clearInterval(pollTimer); goHome(); return; }
-      applyState(data.state);
-    } catch (e) {
-    } finally {
-      pollBusy = false;
-    }
-  }
-
-  async function boot() {
-    const res = await fetch('/bs/api/state');
-    if (res.status === 404) { goHome(); return; }
-    const data = await res.json();
-    if (!data.ok) { goHome(); return; }
-    applyState(data.state);
-    pollTimer = setInterval(poll, 1500);
-  }
-
-  boot();
+  setInterval(tick, 1000);
+  tick();
 })();
 </script>
-{% endraw %}
 </body>
 </html>
