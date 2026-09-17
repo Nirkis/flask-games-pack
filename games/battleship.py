@@ -13,6 +13,7 @@ GAME_META = {
     'template': 'battleship.html',
     'order': 60,
     'modes': [2, 3, 4],
+    'realtime': False,
 }
 
 bp = Blueprint('ms', __name__, url_prefix='/ms')
@@ -277,6 +278,21 @@ def _maybe_start_battle(g):
         if not g['ready'][i]:
             return
     _start_battle(g)
+
+
+def list_active():
+    with LOCK:
+        out = []
+        for code, g in GAMES.items():
+            out.append({
+                'id': code,
+                'phase': g['phase'],
+                'players': [p['name'] for p in g['players']],
+                'occupied': len(g['players']),
+                'started': g['phase'] != 'lobby',
+                'created': g.get('created'),
+            })
+        return out
 
 
 def _board_view(b):
