@@ -11,6 +11,7 @@ bp = Blueprint('hearthlite', __name__, url_prefix='/hl')
 GAME_META = {
     'code': 'hl', 'prefix': 'HL', 'name': 'HearthLite',
     'players': '2-3', 'template': 'hearthlite.html', 'order': 10,
+    'realtime': False,
 }
 
 MIN_PLAYERS = 2
@@ -501,7 +502,26 @@ def _current():
         return None, None
     return game, p
 
-
+def list_active():
+    with LOCK:
+        out = []
+        for code, g in GAMES.items():
+            if g.finished:
+                phase = 'over'
+            elif g.started:
+                phase = 'battle'
+            else:
+                phase = 'lobby'
+            out.append({
+                'id': code,
+                'phase': phase,
+                'players': [p.name for p in g.players],
+                'occupied': len(g.players),
+                'max_players': MAX_PLAYERS,
+                'started': g.started,
+                'created': None,
+            })
+        return out
 # ---------- API ----------
 
 @bp.route('/api/state')
