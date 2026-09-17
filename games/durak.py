@@ -12,6 +12,7 @@ GAME_META = {
     'code': 'dk', 'prefix': 'DK', 'name': 'Дурак',
     'players': '2-3', 'template': 'durak.html',
     'modes': [2, 3], 'order': 30,
+    'realtime': False,
 }
 
 SUITS = ['\u2660', '\u2665', '\u2666', '\u2663']
@@ -113,6 +114,23 @@ def maybe_start(g):
     g['log'].append('Игра началась. Козырь — %s. Первым ходит %s.' % (
         g['trump_suit'], g['names'][g['attacker_idx']]))
     record(g)
+
+
+def list_active():
+    with LOCK:
+        out = []
+        for code, g in GAMES.items():
+            players = [g['names'][i] for i, occ in enumerate(g['occupied']) if occ]
+            out.append({
+                'id': code,
+                'phase': g['phase'],
+                'players': players,
+                'occupied': len(players),
+                'max_players': g['num_players'],
+                'started': g['phase'] != 'lobby',
+                'created': g.get('created'),
+            })
+        return out
 
 
 def undefended_count(g):
