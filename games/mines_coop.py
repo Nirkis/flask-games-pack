@@ -23,6 +23,7 @@ GAME_META = {
     'code': 'mn', 'prefix': 'MN', 'name': 'Мины',
     'players': '1-4', 'template': 'mines.html',
     'modes': [1, 2, 3, 4], 'order': 40,
+    'realtime': False,
 }
 
 BOARD_SIZE = 10
@@ -349,6 +350,23 @@ def create_game(name, mode=2):
         if mode == 1:               # соло стартует сразу
             maybe_start(g)
     return code, tok, None
+
+
+def list_active():
+    with LOCK:
+        out = []
+        for code, g in GAMES.items():
+            players = [g['names'][i] for i, occ in enumerate(g['occupied']) if occ]
+            out.append({
+                'id': code,
+                'phase': g['phase'],
+                'players': players,
+                'occupied': len(players),
+                'max_players': g['num_players'],
+                'started': g['phase'] != 'lobby',
+                'created': g.get('created'),
+            })
+        return out
 
 
 def join_game(code, name):
