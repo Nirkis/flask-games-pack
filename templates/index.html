@@ -3,17 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Игровой портал</title>
+<title>Flask-Games-pack</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, sans-serif;
-         background: radial-gradient(circle at 50% 0%, #1b2631 0%, #0a1018 70%);
-         color: #eee; min-height: 100vh; display: flex;
-         align-items: center; justify-content: center; margin: 0; padding: 20px; }
-  .card { background: #1b2631; padding: 28px 32px; border-radius: 14px;
-          box-shadow: 0 10px 40px rgba(0,0,0,.6); width: 420px;
-          border: 1px solid #22303f; }
-  h1 { margin: 0 0 18px; font-size: 22px; text-align: center; letter-spacing: 1px; }
+  body {
+    margin: 0; padding: 24px; min-height: 100vh; color: #eee;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1b2631 0%, #0a1018 70%);
+    display: flex; justify-content: center;
+  }
+  .wrap {
+    width: 100%; max-width: 1200px;
+    display: grid; grid-template-columns: 420px 1fr; gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+
+  .card {
+    background: #1b2631; padding: 26px 28px; border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6);
+    border: 1px solid #22303f;
+  }
+  h1 { margin: 0 0 4px; font-size: 22px; text-align: center; letter-spacing: 1px; }
+  .tagline { text-align: center; font-size: 12px; opacity: .5;
+             margin: 0 0 18px; letter-spacing: 1.5px; text-transform: uppercase; }
   label { display: block; font-size: 12px; opacity: .8; margin: 14px 0 4px;
           text-transform: uppercase; letter-spacing: 1px; }
   input, select { width: 100%; padding: 10px 12px; border-radius: 8px;
@@ -31,84 +44,105 @@
   .tabs button { margin: 0; font-size: 13px; padding: 8px; }
   .tabs button.active { background: #4a9eff; }
   .tabs button:not(.active) { background: #34495e; }
-  .err { color: #ff6b6b; font-size: 13px; margin-top: 12px; min-height: 18px; text-align: center; }
+  .err { color: #ff6b6b; font-size: 13px; margin-top: 12px; min-height: 18px;
+         text-align: center; }
   .hint { font-size: 11px; opacity: .55; margin-top: 6px; }
   .row { display: none; }
   .row.active { display: block; }
-  .hidden { display: none !important; }
-  .opt-desc { font-size: 11px; opacity: .65; margin-top: 4px; line-height: 1.4; min-height: 14px; }
+
+  /* ---------- Панель активных игр ---------- */
+  .panel { background: #1b2631; border-radius: 14px; border: 1px solid #22303f;
+           box-shadow: 0 10px 40px rgba(0,0,0,.6); overflow: hidden; }
+  .panel-head { padding: 16px 22px; border-bottom: 1px solid #22303f;
+                display: flex; justify-content: space-between; align-items: center; }
+  .panel-head h2 { margin: 0; font-size: 14px; letter-spacing: 1.2px;
+                   text-transform: uppercase; opacity: .85; }
+  .panel-head .count { font-size: 12px; opacity: .55; }
+  .games-list { max-height: 640px; overflow-y: auto; }
+  .game-row { padding: 12px 22px; border-bottom: 1px solid #1a2530;
+              display: grid; grid-template-columns: auto 1fr auto; gap: 14px;
+              align-items: center; }
+  .game-row:last-child { border-bottom: none; }
+  .game-row:hover { background: rgba(74,158,255,.04); }
+  .badge-phase { font-size: 11px; padding: 3px 9px; border-radius: 10px;
+                 font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+  .badge-phase.lobby  { background: #34495e; color: #cfd8e8; }
+  .badge-phase.battle { background: #7a1d1d; color: #ffd6d6; }
+  .badge-phase.over   { background: #2c3e2c; color: #b8d8b8; }
+  .game-info .nm { font-weight: 600; font-size: 14px; }
+  .game-info .meta { font-size: 12px; opacity: .6; margin-top: 2px; }
+  .game-code { font-family: ui-monospace, monospace; font-size: 13px;
+               background: #0e1621; border: 1px dashed #4a9eff; color: #4a9eff;
+               padding: 3px 9px; border-radius: 6px; letter-spacing: 2px; }
+  .empty { padding: 40px 22px; text-align: center; opacity: .4; font-size: 13px; }
+  .players-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .chip { font-size: 11px; padding: 1px 8px; border-radius: 8px;
+          background: #22303f; color: #cfd8e8; }
 </style>
 </head>
 <body>
-<div class="card">
-  <h1>🎮 Игровой портал</h1>
+<div class="wrap">
 
-  <div class="tabs">
-    <button id="tab-create" class="active" type="button">Создать</button>
-    <button id="tab-join" type="button">Войти</button>
-  </div>
+  <!-- ============ ЛЕВАЯ КОЛОНКА ============ -->
+  <div class="card">
+    <h1>🎮 Flask-Games-pack</h1>
+    <p class="tagline">Мультиплеерные веб-игры</p>
 
-  <label>Ваш ник</label>
-  <input id="name" maxlength="16" placeholder="Например, Артём" autocomplete="off">
-
-  <div id="pane-create" class="row active">
-    <label>Игра</label>
-    <select id="game_type"><option>Загрузка…</option></select>
-
-    <div id="mode-box-create" class="hidden">
-      <label>Число игроков</label>
-      <select id="mode-create"></select>
+    <div class="tabs">
+      <button id="tab-create" class="active" type="button">Создать</button>
+      <button id="tab-join" type="button">Войти</button>
     </div>
 
-    <div id="extras-create"></div>
+    <label>Ваш ник</label>
+    <input id="name" maxlength="16" placeholder="Например, Артём" autocomplete="off">
 
-    <button id="btn-create" disabled>Создать игру</button>
-    <div class="hint">Получите код и передайте друзьям.</div>
+    <div id="pane-create" class="row active">
+      <label>Игра</label>
+      <select id="game_type"><option>Загрузка…</option></select>
+
+      <div id="mode-box" style="display:none">
+        <label>Число игроков</label>
+        <select id="mode"></select>
+      </div>
+
+      <button id="btn-create" disabled>Создать игру</button>
+      <div class="hint">Получите код вида XX-XXXX и передайте друзьям.</div>
+    </div>
+
+    <div id="pane-join" class="row">
+      <label>Код игры</label>
+      <input id="code" maxlength="7" placeholder="XX-XXXX"
+             style="text-transform: uppercase; letter-spacing: 3px; text-align: center;">
+
+      <button id="btn-join" class="secondary" disabled>Войти в игру</button>
+      <div class="hint">Формат: 2 буквы, дефис, 4 символа.</div>
+    </div>
+
+    <div id="err" class="err"></div>
   </div>
 
-  <div id="pane-join" class="row">
-    <label>Код игры</label>
-    <input id="code" maxlength="8" placeholder="XX-XXXX"
-           style="text-transform: uppercase; letter-spacing: 3px; text-align: center;">
-
-    <div id="extras-join"></div>
-
-    <button id="btn-join" class="secondary" disabled>Войти в игру</button>
-    <div class="hint">Формат: XX-XXXX — префикс подскажет портал, куда вас направить.</div>
+  <!-- ============ ПРАВАЯ КОЛОНКА: АКТИВНЫЕ ИГРЫ ============ -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>🌐 Активные игры</h2>
+      <span class="count" id="activeCount">—</span>
+    </div>
+    <div class="games-list" id="activeList">
+      <div class="empty">Загрузка…</div>
+    </div>
   </div>
 
-  <div id="err" class="err"></div>
 </div>
 
 <script>
 (function () {
   'use strict';
-
   const $ = id => document.getElementById(id);
   const errBox = $('err');
-
   let GAMES = [];
   let tab = 'create';
 
-  // Какие extra_options портал умеет рисовать.
-  // Добавить новый — дописать сюда один блок.
-  const OPTION_DEFS = {
-    disease_type: {
-      label: 'Тип болезни',
-      default: 'bacteria',
-      options: [
-        { value: 'bacteria', label: '🦠 Бактерия',
-          desc: 'Быстрая, живучая, шумная. Каждые 20 сек — бесплатный апгрейд.' },
-        { value: 'virus',    label: '🧬 Вирус',
-          desc: 'Баланс. Мутирует сам: ±1 случайного узла каждые 15 сек.' },
-        { value: 'parasite', label: '🪱 Паразит',
-          desc: 'Смертельный, но медленный. Тише 30 % — заражение ×1.5.' },
-        { value: 'prion',    label: '🧫 Прион',
-          desc: 'Очень смертельный, очень тихий. Вакцина против вас ×0.7.' },
-      ],
-    },
-  };
-
+  // ---------- Tabs ----------
   function setTab(t) {
     tab = t;
     $('tab-create').classList.toggle('active', t === 'create');
@@ -118,97 +152,35 @@
     errBox.textContent = '';
     updateConditional();
   }
-
   $('tab-create').onclick = () => setTab('create');
   $('tab-join').onclick = () => setTab('join');
 
+  // ---------- Selected game / mode ----------
   function selectedGameCreate() {
     return GAMES.find(g => g.code === $('game_type').value) || null;
   }
-
   function detectGameFromCode() {
     const code = ($('code').value || '').trim().toUpperCase();
-    if (!code || !code.includes('-')) return null;
+    if (!/^[A-Z]{2}-[A-Z0-9]{4}$/.test(code)) return null;
     const prefix = code.split('-')[0];
     return GAMES.find(g => g.prefix === prefix) || null;
-  }
-
-  function renderExtras(targetId, options, existingValues) {
-    const box = $(targetId);
-    box.innerHTML = '';
-    (options || []).forEach(optName => {
-      const def = OPTION_DEFS[optName];
-      if (!def) return;
-      const wrap = document.createElement('div');
-      const lbl = document.createElement('label');
-      lbl.textContent = def.label;
-      wrap.appendChild(lbl);
-
-      const sel = document.createElement('select');
-      sel.dataset.opt = optName;
-      def.options.forEach(o => {
-        const op = document.createElement('option');
-        op.value = o.value;
-        op.textContent = o.label;
-        sel.appendChild(op);
-      });
-      sel.value = (existingValues && existingValues[optName]) || def.default;
-      wrap.appendChild(sel);
-
-      const desc = document.createElement('div');
-      desc.className = 'opt-desc';
-      const update = () => {
-        const cur = def.options.find(o => o.value === sel.value);
-        desc.textContent = (cur && cur.desc) || '';
-      };
-      sel.onchange = update;
-      update();
-      wrap.appendChild(desc);
-
-      box.appendChild(wrap);
-    });
-  }
-
-  function collectExtras(targetId) {
-    const out = {};
-    $(targetId).querySelectorAll('select[data-opt]').forEach(s => {
-      out[s.dataset.opt] = s.value;
-    });
-    return out;
   }
 
   function updateConditional() {
     if (tab === 'create') {
       const g = selectedGameCreate();
-      const hasModes = g && g.modes && g.modes.length > 0;
-      $('mode-box-create').classList.toggle('hidden', !hasModes);
+      const hasModes = !!(g && g.modes && g.modes.length);
+      $('mode-box').style.display = hasModes ? '' : 'none';
       if (hasModes) {
-        $('mode-create').innerHTML = g.modes.map(m =>
+        $('mode').innerHTML = g.modes.map(m =>
           '<option value="' + m + '"' + (m === g.modes[0] ? ' selected' : '') + '>' +
           m + (m === 1 ? ' — соло' : '') + '</option>'
         ).join('');
       }
-      const extras = (g && g.extra_options) || [];
-      renderExtras('extras-create', extras, null);
       $('btn-create').disabled = !g;
     } else {
-      const g = detectGameFromCode();
-      const extras = (g && g.extra_options) || [];
-      renderExtras('extras-join', extras, null);
-      $('btn-join').disabled = !g;
+      $('btn-join').disabled = !detectGameFromCode();
     }
-  }
-
-  async function post(url, body) {
-    errBox.textContent = '';
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!data.ok) { errBox.textContent = data.error || 'Ошибка'; return null; }
-    return data;
   }
 
   $('game_type').onchange = updateConditional;
@@ -217,49 +189,116 @@
     updateConditional();
   });
 
-  $('btn-create').onclick = async () => {
+  // ---------- Network ----------
+  async function post(url, body) {
+    errBox.textContent = '';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      credentials: 'same-origin',
+      body: JSON.stringify(body)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!data.ok) { errBox.textContent = data.error || 'Ошибка'; return null; }
+    return data;
+  }
+
+  async function withLock(btn, fn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try { await fn(); } finally { btn.disabled = false; }
+  }
+
+  $('btn-create').onclick = () => withLock($('btn-create'), async () => {
     const name = $('name').value.trim();
     if (!name) { errBox.textContent = 'Введите ник'; return; }
     const g = selectedGameCreate();
     if (!g) return;
-    const body = { game_type: g.code, name };
-    if (g.modes && g.modes.length) {
-      body.mode = parseInt($('mode-create').value, 10);
-    }
-    Object.assign(body, collectExtras('extras-create'));
+    const body = {game_type: g.code, name: name};
+    if (g.modes && g.modes.length) body.mode = parseInt($('mode').value, 10);
     const data = await post('/api/create', body);
     if (data) location.href = data.redirect;
-  };
+  });
 
-  $('btn-join').onclick = async () => {
+  $('btn-join').onclick = () => withLock($('btn-join'), async () => {
     const name = $('name').value.trim();
     const code = $('code').value.trim().toUpperCase();
     if (!name) { errBox.textContent = 'Введите ник'; return; }
-    if (!code || !code.includes('-')) {
-      errBox.textContent = 'Введите код вида XX-XXXX';
+    if (!/^[A-Z]{2}-[A-Z0-9]{4}$/.test(code)) {
+      errBox.textContent = 'Код должен быть вида XX-XXXX';
       return;
     }
-    const body = { code, name };
-    Object.assign(body, collectExtras('extras-join'));
-    const data = await post('/api/join', body);
+    const data = await post('/api/join', {code: code, name: name});
     if (data) location.href = data.redirect;
-  };
+  });
 
   document.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
+    if (e.target.tagName === 'SELECT') return;
     if (tab === 'create') $('btn-create').click();
     else $('btn-join').click();
   });
 
-  // Загрузка списка игр с сервера + автопереход, если уже в игре
+  // ---------- Панель активных игр ----------
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function fmtAge(sec) {
+    if (sec < 60) return sec + ' с';
+    if (sec < 3600) return Math.floor(sec / 60) + ' мин';
+    return Math.floor(sec / 3600) + ' ч';
+  }
+
+  async function refreshActive() {
+    try {
+      const r = await fetch('/api/active_games', {credentials: 'same-origin'});
+      const data = await r.json();
+      if (!data.ok) return;
+      renderActive(data.games || []);
+    } catch (e) {}
+  }
+
+  function renderActive(games) {
+    const list = $('activeList');
+    $('activeCount').textContent = games.length + (games.length === 1 ? ' игра' : ' игр');
+    if (!games.length) {
+      list.innerHTML = '<div class="empty">Пока никто не играет. Создайте первую партию!</div>';
+      return;
+    }
+    list.innerHTML = games.map(g => {
+      const phaseClass = g.started ? 'battle' : 'lobby';
+      const phaseLabel = g.started ? (g.phase === 'over' ? 'финал' : 'в игре') : 'лобби';
+      const players = (g.players || []).map(p =>
+        '<span class="chip">' + esc(p) + '</span>'
+      ).join('') || '<span class="chip" style="opacity:.4">пусто</span>';
+      return '<div class="game-row">' +
+        '<div class="badge-phase ' + phaseClass + '">' + phaseLabel + '</div>' +
+        '<div class="game-info">' +
+          '<div class="nm">' + esc(g.game_name) + '</div>' +
+          '<div class="meta">' +
+            g.occupied + '/' + g.max_players + ' игроков · ' + fmtAge(g.age_sec) + ' назад' +
+          '</div>' +
+          '<div class="players-chips">' + players + '</div>' +
+        '</div>' +
+        '<div class="game-code">' + esc(g.id) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // ---------- Boot ----------
   fetch('/api/games').then(r => r.json()).then(d => {
     if (!d || !d.ok) return;
     GAMES = d.games;
     $('game_type').innerHTML = GAMES.map(g =>
-      '<option value="' + g.code + '">' + g.name + ' (' + g.players + ')</option>'
+      '<option value="' + g.code + '">' + esc(g.name) + ' (' + g.players + ')</option>'
     ).join('');
     updateConditional();
   });
+
+  refreshActive();
+  setInterval(refreshActive, 3000);
 
   fetch('/api/whoami').then(r => r.json()).then(d => {
     if (d && d.game_type) location.href = '/play';
