@@ -1,15 +1,39 @@
 # -*- coding: utf-8 -*-
-"""Единый игровой портал с автообнаружением игр."""
+"""Flask-Games-pack — единый портал с автообнаружением игр."""
 import inspect
+import logging
 import os
+import threading
+import time
 
 from flask import Flask, jsonify, render_template, request, session, redirect
 
 from games import registry
+from games import events as events_bus
+
+
+# ---------- Логирование ----------
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+
+
+# ---------- Секрет ----------
+_secret = os.environ.get('PORTAL_SECRET')
+if not _secret:
+    if os.environ.get('PORTAL_DEV') == '1':
+        _secret = 'dev-insecure-do-not-use-in-prod'
+        logging.warning('PORTAL_DEV=1 — используется небезопасный секрет. '
+                        'Никогда не запускайте так в продакшене.')
+    else:
+        raise SystemExit(
+            'PORTAL_SECRET не задан.\n'
+            '  Прод:     export PORTAL_SECRET="$(python -c \'import secrets;print(secrets.token_urlsafe(32))\')"\n'
+            '  Локально: export PORTAL_DEV=1'
+        )
 
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('PORTAL_SECRET', 'portal-dev-secret-change-me')
+app.secret_key = _secret
 
 try:
     app.json.ensure_ascii = False
@@ -19,14 +43,34 @@ except AttributeError:
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 
-# === вот и вся интеграция ===
+
+# ---------- Игры ----------
 registry.autodiscover()
 registry.register_blueprints(app)
-# ============================
 
 
+# ---------- Фоновый sweeper ----------
+def _sweeper_loop():
+    while True:
+        time.sleep(60)
+        try:
+            events_bus.sweep_dead()
+            registry.sweep_games()
+        except Exception:
+            pass
+
+
+_sweeper_started = False
+def _ensure_sweeper():
+    global _sweeper_started
+    if _sweeper_started:
+        return
+    _sweeper_started = True
+    threading.Thread(target=_sweeper_loop, daemon=True, name='portal_sweep').start()
+
+
+# ---------- Хелперы ----------
 def _safe_call(fn, *args, **kwargs):
-    """Вызывает fn, отбрасывая kwargs, которых нет в её сигнатуре."""
     try:
         params = inspect.signature(fn).parameters
     except (TypeError, ValueError):
@@ -63,6 +107,7 @@ def _set_session(gt, code, token, name):
     session['name'] = name
 
 
+# ---------- Страницы ----------
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -77,9 +122,9 @@ def play():
     return render_template(entry['meta']['template'])
 
 
+# ---------- API ----------
 @app.route('/api/games')
 def api_games():
-    """Список игр для лендинга."""
     out = []
     for e in registry.all_games():
         m = e['meta']
@@ -89,13 +134,20 @@ def api_games():
             'name': m['name'],
             'players': m.get('players', '2'),
             'modes': m.get('modes', []),
-            'extra_options': m.get('extra_options', []),
+            'realtime': bool(m.get('realtime')),
         })
     return jsonify({'ok': True, 'games': out})
 
 
+@app.route('/api/active_games')
+def api_active_games():
+    """Публичный список запущенных партий."""
+    return jsonify({'ok': True, 'games': registry.snapshot_active()})
+
+
 @app.route('/api/create', methods=['POST'])
 def api_create():
+    _ensure_sweeper()
     data = request.get_json(silent=True) or {}
     gt = (data.get('game_type') or '').lower()
     entry = registry.get(gt)
@@ -115,10 +167,6 @@ def api_create():
             mode = m['modes'][0]
         opts['mode'] = mode
 
-    for k in m.get('extra_options', []):
-        if k in data and data[k] is not None:
-            opts[k] = data[k]
-
     try:
         code, token, err = _safe_call(entry['module'].create_game, name, **opts)
     except Exception as e:
@@ -133,6 +181,7 @@ def api_create():
 
 @app.route('/api/join', methods=['POST'])
 def api_join():
+    _ensure_sweeper()
     data = request.get_json(silent=True) or {}
     code = (data.get('code') or '').strip().upper()
     name = (data.get('name') or '').strip()[:16] or 'Игрок'
@@ -145,21 +194,15 @@ def api_join():
     if entry is None:
         return jsonify({'ok': False, 'error': 'Неизвестный тип игры'}), 400
 
-    m = entry['meta']
-    opts = {}
-    for k in m.get('extra_options', []):
-        if k in data and data[k] is not None:
-            opts[k] = data[k]
-
     try:
-        token, err = _safe_call(entry['module'].join_game, code, name, **opts)
+        token, err = _safe_call(entry['module'].join_game, code, name)
     except Exception as e:
         return jsonify({'ok': False, 'error': 'Ошибка подключения: %s' % e}), 500
 
     if err:
         return jsonify({'ok': False, 'error': err}), 400
 
-    _set_session(m['code'], code, token, name)
+    _set_session(entry['meta']['code'], code, token, name)
     return jsonify({'ok': True, 'code': code, 'redirect': '/play'})
 
 
@@ -189,9 +232,13 @@ def api_leave():
                 leave_fn(code, tok)
             except Exception:
                 pass
+    if code and tok:
+        events_bus.drop_player(code, tok)
     session.clear()
     return jsonify({'ok': True})
 
 
+# ---------- Точка входа ----------
 if __name__ == '__main__':
+    _ensure_sweeper()
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
