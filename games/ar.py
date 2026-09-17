@@ -18,11 +18,11 @@ GAME_META = {
     'template': 'ar.html',
     'order': 60,
     'modes': [2, 3, 4, 5, 6, 7, 8],
+    'realtime': False,
 }
 
 HAND_MAX = 8
 REFRESH_COST = 1
-GOLDEN_COST = 4
 
 UNITS = {
     'rat':    {'name': 'Крыса',   'tier': 1, 'atk': 1, 'hp': 2, 'cost': 3, 'ability': 'poison'},
@@ -55,21 +55,21 @@ ABILITIES = {
 
 HEROES = [
     {'id': 'econ',    'name': 'Крез',     'desc': '+2 золота в начале раунда',
-     'active': {'name': 'Золотая жила', 'desc': '+3 золота сейчас'}},
+     'active': {'name': 'Золотая жила', 'desc': '+5 золота', 'cost': 2}},
     {'id': 'smith',   'name': 'Кузнец',   'desc': 'Все ваши юниты +1 HP в бою',
-     'active': {'name': 'Закалка', 'desc': 'Всем юнитам на поле +1 HP навсегда'}},
+     'active': {'name': 'Закалка', 'desc': 'Всем юнитам на поле +1 HP навсегда', 'cost': 3}},
     {'id': 'warlord', 'name': 'Воевода',  'desc': 'Все ваши юниты +1 ATK в бою',
-     'active': {'name': 'Приказ', 'desc': 'Всем юнитам на поле +1 ATK навсегда'}},
+     'active': {'name': 'Приказ', 'desc': 'Всем юнитам на поле +1 ATK навсегда', 'cost': 3}},
     {'id': 'trader',  'name': 'Торговец', 'desc': 'Апгрейд таверны -2 золота',
-     'active': {'name': 'Скидка', 'desc': 'Следующий апгрейд -3 золота'}},
+     'active': {'name': 'Скидка', 'desc': 'Следующий апгрейд -3 золота', 'cost': 2}},
     {'id': 'alchem',  'name': 'Алхимик',  'desc': 'Первая покупка в раунде -1 золото',
-     'active': {'name': 'Трансмутация', 'desc': 'Первый обычный юнит в руке становится золотым'}},
+     'active': {'name': 'Трансмутация', 'desc': 'Первый обычный юнит в руке становится золотым', 'cost': 4}},
     {'id': 'master',  'name': 'Мастер',   'desc': 'Поле +1 слот',
-     'active': {'name': 'Набор', 'desc': 'Ещё +1 слот поля навсегда'}},
+     'active': {'name': 'Набор', 'desc': 'Ещё +1 слот поля навсегда', 'cost': 4}},
     {'id': 'bard',    'name': 'Бард',     'desc': '+2 золота за победу в бою',
-     'active': {'name': 'Овация', 'desc': '+3 золота сейчас'}},
+     'active': {'name': 'Овация', 'desc': '+5 золота', 'cost': 2}},
     {'id': 'warden',  'name': 'Страж',    'desc': 'Стартовое HP +5',
-     'active': {'name': 'Стойкость', 'desc': 'Восстановить 4 HP'}},
+     'active': {'name': 'Стойкость', 'desc': 'Восстановить 4 HP', 'cost': 3}},
 ]
 
 
@@ -494,30 +494,77 @@ def _award_bonus_card(g, p, uid):
     p['hand'].append(_new_unit(cid))
 
 
+def _collect_triple_sources(p, uid):
+    sources = []
+    for i, u in enumerate(p['field']):
+        if u['uid'] == uid and not u['gold']:
+            sources.append(('field', i))
+            if len(sources) == 3:
+                return sources
+    for i, u in enumerate(p['hand']):
+        if u['uid'] == uid and not u['gold']:
+            sources.append(('hand', i))
+            if len(sources) == 3:
+                return sources
+    return sources
+
+
 def _check_triples(g, pid):
     p = g['players'][pid]
     while True:
-        found = False
-        seen = set()
+        counts = {}
         for u in p['field']:
-            if u['gold']:
-                continue
-            uid = u['uid']
-            if uid in seen:
-                continue
-            seen.add(uid)
-            idxs = [i for i, x in enumerate(p['field'])
-                    if x['uid'] == uid and not x['gold']]
-            if len(idxs) >= 3:
-                take = sorted(idxs[:3], reverse=True)
-                for i in take:
-                    p['field'].pop(i)
-                p['field'].append(_new_unit(uid, golden=True))
-                _award_bonus_card(g, p, uid)
-                found = True
+            if not u['gold']:
+                counts[u['uid']] = counts.get(u['uid'], 0) + 1
+        for u in p['hand']:
+            if not u['gold']:
+                counts[u['uid']] = counts.get(u['uid'], 0) + 1
+
+        target = None
+        for uid, c in counts.items():
+            if c >= 3:
+                target = uid
                 break
-        if not found:
-            break
+        if target is None:
+            return
+
+        sources = _collect_triple_sources(p, target)
+        if len(sources) < 3:
+            return
+
+        on_field = any(s[0] == 'field' for s in sources)
+        field_idx = sorted([s[1] for s in sources if s[0] == 'field'], reverse=True)
+        hand_idx = sorted([s[1] for s in sources if s[0] == 'hand'], reverse=True)
+
+        cards = []
+        for i in field_idx:
+            cards.append(p['field'].pop(i))
+        for i in hand_idx:
+            cards.append(p['hand'].pop(i))
+
+        base = UNITS[target]
+        base_atk = base['atk']
+        base_hp = base['hp']
+        bonus_atk = sum(c['atk'] - base_atk for c in cards)
+        bonus_hp = sum(c['hp'] - base_hp for c in cards)
+        g_atk = base_atk * 2 + bonus_atk
+        g_hp = base_hp * 2 + bonus_hp
+
+        golden = {
+            'uid': target,
+            'atk': g_atk,
+            'hp': g_hp,
+            'max_hp': g_hp,
+            'gold': True,
+            'ability': base.get('ability', 'none'),
+        }
+
+        if on_field:
+            p['field'].append(golden)
+        else:
+            p['hand'].append(golden)
+
+        _award_bonus_card(g, p, target)
 
 
 def _apply_spell(g, p, sid):
@@ -583,6 +630,7 @@ def _buy(g, pid, idx):
     g['pool'][uid] -= 1
     p['hand'].append(_new_unit(uid))
     _refill_shop_slot(g, p, idx)
+    _check_triples(g, pid)
     return None
 
 
@@ -629,34 +677,6 @@ def _sell_hand(g, pid, idx):
     p['gold'] += refund
     if not u['gold']:
         g['pool'][u['uid']] = g['pool'].get(u['uid'], 0) + 1
-    return None
-
-
-def _make_golden(g, pid, loc, idx):
-    p = g['players'][pid]
-    if not p['alive']:
-        return 'Вы выбыли'
-    if g['phase'] != 'recruit':
-        return 'Только в фазе найма'
-    if loc == 'hand':
-        arr = p['hand']
-    elif loc == 'field':
-        arr = p['field']
-    else:
-        return 'Неверная цель'
-    if idx < 0 or idx >= len(arr):
-        return 'Неверный индекс'
-    u = arr[idx]
-    if u['gold']:
-        return 'Юнит уже золотой'
-    if p['gold'] < GOLDEN_COST:
-        return 'Недостаточно золота'
-    p['gold'] -= GOLDEN_COST
-    u['gold'] = True
-    u['atk'] *= 2
-    u['hp'] *= 2
-    u['max_hp'] *= 2
-    _award_bonus_card(g, p, u['uid'])
     return None
 
 
@@ -715,8 +735,17 @@ def _use_active(g, pid):
     if p.get('used_active'):
         return 'Способность уже использована в этом раунде'
     h = p['hero']
+    info = next(x for x in HEROES if x['id'] == h)
+    cost = info['active']['cost']
+    if p['gold'] < cost:
+        return 'Недостаточно золота'
+    if h == 'alchem':
+        has_target = any(not u['gold'] for u in p['hand'])
+        if not has_target:
+            return 'Нет обычного юнита в руке'
+    p['gold'] -= cost
     if h == 'econ':
-        p['gold'] += 3
+        p['gold'] += 5
     elif h == 'smith':
         for u in p['field']:
             u['hp'] += 1
@@ -727,7 +756,6 @@ def _use_active(g, pid):
     elif h == 'trader':
         p['trade_discount'] = 3
     elif h == 'alchem':
-        done = False
         for u in p['hand']:
             if not u['gold']:
                 u['gold'] = True
@@ -735,14 +763,12 @@ def _use_active(g, pid):
                 u['hp'] *= 2
                 u['max_hp'] *= 2
                 _award_bonus_card(g, p, u['uid'])
-                done = True
                 break
-        if not done:
-            return 'Нет обычного юнита в руке'
+        _check_triples(g, pid)
     elif h == 'master':
         p['extra_slots'] = p.get('extra_slots', 0) + 1
     elif h == 'bard':
-        p['gold'] += 3
+        p['gold'] += 5
     elif h == 'warden':
         p['hp'] += 4
     p['used_active'] = True
@@ -811,7 +837,6 @@ def build_state(g, pid):
         'hero_names': {h['id']: h['name'] for h in HEROES},
         'hand_max': HAND_MAX,
         'refresh_cost': REFRESH_COST,
-        'golden_cost': GOLDEN_COST,
     }
 
     if g['phase'] == 'lobby':
@@ -924,12 +949,6 @@ def api_action():
             except (TypeError, ValueError):
                 idx = -1
             err = _sell_hand(g, pid, idx)
-        elif action == 'make_golden':
-            try:
-                idx = int(data.get('idx'))
-            except (TypeError, ValueError):
-                idx = -1
-            err = _make_golden(g, pid, data.get('loc'), idx)
         elif action == 'refresh':
             err = _refresh_shop(g, pid)
         elif action == 'upgrade':
