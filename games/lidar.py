@@ -14,6 +14,7 @@ GAME_META = {
     'code': 'ld', 'prefix': 'LD', 'name': 'LIDAR',
     'players': '2-4', 'template': 'lidar.html',
     'modes': [2, 3, 4], 'order': 60,
+    'realtime': False,
 }
 
 BOARD_SIZE = 20
