@@ -1,0 +1,143 @@
+{
+    "move":        {"name": "Движение",     "hotkey": "M", "kind": "order", "target": "point"},
+    "stop":        {"name": "Стоп",         "hotkey": "S", "kind": "order", "target": "none"},
+    "hold":        {"name": "Держать",      "hotkey": "H", "kind": "order", "target": "none"},
+    "attack":      {"name": "Атака",        "hotkey": "A", "kind": "order", "target": "enemy_unit"},
+    "attack_move": {"name": "Атака-марш",   "hotkey": "A", "kind": "order", "target": "point"},
+    "patrol":      {"name": "Патруль",      "hotkey": "P", "kind": "order", "target": "point2"},
+    "gather":      {"name": "Добыча",       "hotkey": "G", "kind": "order", "target": "resource"},
+    "repair":      {"name": "Ремонт",       "hotkey": "R", "kind": "order", "target": "own_building"},
+
+    "build_alliance": {
+        "name": "Строительство", "hotkey": "B", "kind": "menu",
+        "options": [
+            {"id": "town_hall",         "name": "Ратуша",         "hotkey": "T", "target": "point", "cost": {"gold": 300, "wood": 100}, "build_time": 60},
+            {"id": "barracks_alliance", "name": "Казарма",        "hotkey": "B", "target": "point", "cost": {"gold": 150, "wood": 50},  "build_time": 40},
+            {"id": "farm",              "name": "Ферма",          "hotkey": "F", "target": "point", "cost": {"gold": 80,  "wood": 20},  "build_time": 25},
+            {"id": "altar_of_light",    "name": "Алтарь Света",   "hotkey": "A", "target": "point", "cost": {"gold": 180, "wood": 60},  "build_time": 50}
+        ]
+    },
+    "build_horde": {
+        "name": "Строительство", "hotkey": "B", "kind": "menu",
+        "options": [
+            {"id": "great_hall",      "name": "Большой зал",    "hotkey": "G", "target": "point", "cost": {"gold": 300, "wood": 100}, "build_time": 60},
+            {"id": "barracks_horde",  "name": "Казарма Орды",   "hotkey": "B", "target": "point", "cost": {"gold": 140, "wood": 40},  "build_time": 38},
+            {"id": "food_totem",      "name": "Тотем еды",      "hotkey": "F", "target": "point", "cost": {"gold": 80,  "wood": 20},  "build_time": 25},
+            {"id": "altar_of_storms", "name": "Алтарь Штормов", "hotkey": "A", "target": "point", "cost": {"gold": 180, "wood": 60},  "build_time": 50}
+        ]
+    },
+    "build_undead": {
+        "name": "Строительство", "hotkey": "B", "kind": "menu",
+        "options": [
+            {"id": "necropolis",        "name": "Некрополь",   "hotkey": "N", "target": "point", "cost": {"gold": 300, "wood": 100}, "build_time": 60},
+            {"id": "crypt",             "name": "Крипт",       "hotkey": "C", "target": "point", "cost": {"gold": 140, "wood": 50},  "build_time": 38},
+            {"id": "ziggurat",          "name": "Зиккурат",    "hotkey": "Z", "target": "point", "cost": {"gold": 80,  "wood": 20},  "build_time": 25},
+            {"id": "altar_of_darkness", "name": "Алтарь Тьмы", "hotkey": "A", "target": "point", "cost": {"gold": 180, "wood": 60},  "build_time": 50}
+        ]
+    },
+    "build_night_elf": {
+        "name": "Строительство", "hotkey": "B", "kind": "menu",
+        "options": [
+            {"id": "tree_of_life",     "name": "Древо Жизни",   "hotkey": "T", "target": "point", "cost": {"gold": 300, "wood": 100}, "build_time": 60},
+            {"id": "ancient_of_war",   "name": "Древний Войны", "hotkey": "A", "target": "point", "cost": {"gold": 150, "wood": 50},  "build_time": 40},
+            {"id": "moon_well",        "name": "Лунный колодец","hotkey": "M", "target": "point", "cost": {"gold": 80,  "wood": 20},  "build_time": 25},
+            {"id": "altar_of_elders",  "name": "Алтарь Старейшин","hotkey":"E","target": "point", "cost": {"gold": 180, "wood": 60},  "build_time": 50}
+        ]
+    },
+
+    "train_town_hall": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "worker", "name": "Строитель", "hotkey": "W", "target": "none",
+             "cost": {"gold": 60, "wood": 0, "food": 1}, "build_time": 15}
+        ]
+    },
+    "train_great_hall": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "peon", "name": "Пейон", "hotkey": "P", "target": "none",
+             "cost": {"gold": 50, "wood": 0, "food": 1}, "build_time": 12}
+        ]
+    },
+    "train_necropolis": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "acolyte", "name": "Аколит", "hotkey": "A", "target": "none",
+             "cost": {"gold": 50, "wood": 0, "food": 1}, "build_time": 12}
+        ]
+    },
+    "train_tree_of_life": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "wisp", "name": "Огонёк", "hotkey": "W", "target": "none",
+             "cost": {"gold": 50, "wood": 0, "food": 1}, "build_time": 12}
+        ]
+    },
+    "train_barracks_alliance": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "footman",     "name": "Пехотинец", "hotkey": "F", "target": "none",
+             "cost": {"gold": 100, "wood": 0,  "food": 2}, "build_time": 20},
+            {"id": "rifleman",    "name": "Стрелок",   "hotkey": "R", "target": "none",
+             "cost": {"gold": 110, "wood": 20, "food": 2}, "build_time": 22},
+            {"id": "knight",      "name": "Рыцарь",    "hotkey": "K", "target": "none",
+             "cost": {"gold": 180, "wood": 40, "food": 3}, "build_time": 35},
+            {"id": "mortar_team", "name": "Мортира",   "hotkey": "M", "target": "none",
+             "cost": {"gold": 180, "wood": 80, "food": 3}, "build_time": 40}
+        ]
+    },
+    "train_barracks_horde": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "grunt",      "name": "Грунт",              "hotkey": "G", "target": "none",
+             "cost": {"gold": 90,  "wood": 0,  "food": 2}, "build_time": 18},
+            {"id": "headhunter", "name": "Охотник за головами","hotkey": "H", "target": "none",
+             "cost": {"gold": 100, "wood": 20, "food": 2}, "build_time": 20},
+            {"id": "raider",     "name": "Рейдер",             "hotkey": "R", "target": "none",
+             "cost": {"gold": 130, "wood": 30, "food": 2}, "build_time": 26},
+            {"id": "catapult",   "name": "Катапульта",         "hotkey": "C", "target": "none",
+             "cost": {"gold": 170, "wood": 70, "food": 3}, "build_time": 42}
+        ]
+    },
+    "train_altar_of_light": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "paladin", "name": "Паладин", "hotkey": "P", "target": "none",
+             "cost": {"gold": 200, "wood": 0, "food": 5}, "build_time": 45}
+        ]
+    },
+    "train_altar_of_storms": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "blademaster", "name": "Блейдмастер", "hotkey": "B", "target": "none",
+             "cost": {"gold": 200, "wood": 0, "food": 5}, "build_time": 45}
+        ]
+    },
+    "train_altar_of_darkness": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "death_knight", "name": "Рыцарь смерти", "hotkey": "D", "target": "none",
+             "cost": {"gold": 200, "wood": 0, "food": 5}, "build_time": 45}
+        ]
+    },
+    "train_altar_of_elders": {
+        "name": "Найм", "hotkey": "T", "kind": "menu",
+        "options": [
+            {"id": "priestess_of_the_moon", "name": "Жрица Луны", "hotkey": "P", "target": "none",
+             "cost": {"gold": 200, "wood": 0, "food": 5}, "build_time": 45}
+        ]
+    },
+
+    "holy_light":      {"name": "Святой свет",        "hotkey": "Q", "kind": "spell", "target": "any_unit",   "mana_cost": 65,  "cooldown": 5.0,  "cast_range": 8},
+    "devotion_aura":   {"name": "Аура преданности",   "hotkey": "W", "kind": "spell", "target": "none",       "mana_cost": 0,   "cooldown": 0.0,  "passive": true},
+    "divine_shield":   {"name": "Божественный щит",   "hotkey": "E", "kind": "spell", "target": "self",       "mana_cost": 25,  "cooldown": 20.0},
+    "wind_walk":       {"name": "Невидимость",        "hotkey": "Q", "kind": "spell", "target": "self",       "mana_cost": 50,  "cooldown": 15.0},
+    "mirror_image":    {"name": "Зеркальное отражение","hotkey": "W", "kind": "spell", "target": "none",       "mana_cost": 80,  "cooldown": 20.0},
+    "critical_strike": {"name": "Критический удар",   "hotkey": "E", "kind": "spell", "target": "none",       "mana_cost": 0,   "cooldown": 0.0, "passive": true},
+    "death_coil":      {"name": "Смертельная спираль", "hotkey": "Q", "kind": "spell", "target": "any_unit",  "mana_cost": 65,  "cooldown": 5.0,  "cast_range": 8},
+    "unholy_aura":     {"name": "Нечестивая аура",     "hotkey": "W", "kind": "spell", "target": "none",      "mana_cost": 0,   "cooldown": 0.0, "passive": true},
+    "animate_dead":    {"name": "Оживление мёртвых",   "hotkey": "E", "kind": "spell", "target": "point",     "mana_cost": 150, "cooldown": 60.0, "cast_range": 10},
+    "searing_arrow":   {"name": "Обжигающая стрела",   "hotkey": "Q", "kind": "spell", "target": "enemy_unit","mana_cost": 10,  "cooldown": 0.0,  "cast_range": 6},
+    "trueshot_aura":   {"name": "Аура точного выстрела","hotkey": "W","kind": "spell", "target": "none",      "mana_cost": 0,   "cooldown": 0.0, "passive": true},
+    "starfall":        {"name": "Звёздный дождь",      "hotkey": "E", "kind": "spell", "target": "point",     "mana_cost": 150, "cooldown": 90.0, "cast_range": 10}
+}
