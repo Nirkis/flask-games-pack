@@ -1,0 +1,34 @@
+{
+  "alliance": {
+    "name": "Альянс",
+    "color": "#4a9eff",
+    "description": "Сбалансированная фракция: сильная оборона, лечение, дальний бой.",
+    "resource_bonus": { "gold": 0.0, "wood": 0.0 },
+    "heroes": ["paladin"],
+    "starting_units": ["worker", "worker", "worker", "footman"]
+  },
+  "horde": {
+    "name": "Орда",
+    "color": "#c8392b",
+    "description": "Агрессивная фракция: дешёвые юниты, высокий burst, быстрый герой.",
+    "resource_bonus": { "gold": 0.0, "wood": 0.0 },
+    "heroes": ["blademaster"],
+    "starting_units": ["peon", "peon", "peon", "grunt"]
+  },
+  "undead": {
+    "name": "Нежить",
+    "color": "#7d4fa8",
+    "description": "Аттришн и некромантия: дешёвая пехота, сильный герой поддержки.",
+    "resource_bonus": { "gold": 0.0, "wood": 0.0 },
+    "heroes": ["death_knight"],
+    "starting_units": ["acolyte", "acolyte", "acolyte"]
+  },
+  "night_elf": {
+    "name": "Ночные эльфы",
+    "color": "#3fa86b",
+    "description": "Мобильность и hit-and-run: скорость, дальность, гибкие герои.",
+    "resource_bonus": { "gold": 0.0, "wood": 0.0 },
+    "heroes": ["priestess_of_the_moon"],
+    "starting_units": ["wisp", "wisp", "wisp"]
+  }
+}
