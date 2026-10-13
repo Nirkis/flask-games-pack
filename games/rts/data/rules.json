@@ -1,0 +1,47 @@
+{
+  "tick_rate": 10,
+  "max_population": 80,
+  "starting_gold": 500,
+  "starting_wood": 200,
+  "starting_food_cap": 10,
+  "match_time_limit_sec": 1500,
+  "victory_condition": "destroy_main_building",
+  "max_units_per_player": 60,
+  "hero_max_level": 5,
+  "resource_gather": {
+    "gold_per_trip": 10,
+    "wood_per_trip": 10,
+    "trip_time_sec": 2.5,
+    "mine_total_gold": 12500,
+    "tree_total_wood": 100
+  },
+  "score_values": {
+    "main_building": 100,
+    "military_building": 20,
+    "food_building": 10,
+    "unit_kill": 5,
+    "gold_per_100": 1,
+    "hero_level": 10
+  },
+  "damage_table": {
+    "melee":  { "ranged": 1.25, "flying": 0.75, "armored": 1.0,  "siege": 1.0,  "melee": 1.0 },
+    "ranged": { "ranged": 1.0,  "flying": 1.25, "armored": 1.15, "siege": 1.0,  "melee": 0.85 },
+    "flying": { "ranged": 0.75, "flying": 1.0,  "armored": 1.0,  "siege": 1.25, "melee": 1.0 },
+    "armored":{ "ranged": 1.0,  "flying": 1.0,  "armored": 1.0,  "siege": 0.75, "melee": 1.25 },
+    "siege":  { "ranged": 1.0,  "flying": 0.5,  "armored": 1.25, "siege": 1.0,  "melee": 1.0 }
+  },
+  "armor_type_to_category": {
+    "light": "ranged",
+    "medium": "ranged",
+    "heavy": "armored",
+    "fortified": "siege",
+    "hero": "armored"
+  },
+  "attack_type_to_category": {
+    "normal": "melee",
+    "pierce": "ranged",
+    "siege": "siege",
+    "magic": "ranged",
+    "chaos": "melee"
+  }
+}
