@@ -1,0 +1,30 @@
+{
+  "bacteria": {
+    "name": "🦠 Бактерия",
+    "desc": "Быстрая и живучая. Отличный старт для агрессивного роста.",
+    "spread": 1.30, "kill": 0.80, "vis": 1.10, "vaccine": 1.20, "cost_mult": 1.00,
+    "organ_mult": {"respiratory": 1.0, "digestive": 1.3, "nervous": 0.8, "circulatory": 1.1, "reproductive": 1.0, "immune": 1.1},
+    "passive": "Каждые 20 тактов один открытый узел +1 бесплатно."
+  },
+  "virus": {
+    "name": "🧬 Вирус",
+    "desc": "Баланс. Мутирует сам: ±1 случайного узла каждые 15 тактов.",
+    "spread": 1.10, "kill": 1.00, "vis": 1.30, "vaccine": 1.00, "cost_mult": 1.00,
+    "organ_mult": {"respiratory": 1.2, "digestive": 0.9, "nervous": 0.9, "circulatory": 1.1, "reproductive": 1.4, "immune": 1.2},
+    "passive": "Каждые 15 тактов один открытый узел ±1 (50/50)."
+  },
+  "parasite": {
+    "name": "🪱 Паразит",
+    "desc": "Смертельный, но медленный. Тише 30 % — заражение ×1.5.",
+    "spread": 0.80, "kill": 1.50, "vis": 0.80, "vaccine": 0.90, "cost_mult": 1.10,
+    "organ_mult": {"respiratory": 0.8, "digestive": 1.1, "nervous": 1.0, "circulatory": 1.3, "reproductive": 0.9, "immune": 1.3},
+    "passive": "При заметности < 30 % заражение ×1.5; при ≥ 50 % — ×0.8."
+  },
+  "prion": {
+    "name": "🧫 Прион",
+    "desc": "Очень смертельный, очень тихий, очень медленный.",
+    "spread": 0.60, "kill": 2.00, "vis": 0.50, "vaccine": 0.70, "cost_mult": 1.20,
+    "organ_mult": {"respiratory": 0.7, "digestive": 0.7, "nervous": 1.5, "circulatory": 1.0, "reproductive": 0.6, "immune": 0.8},
+    "passive": "Вакцина против вас ×0.7. После 30 такта смертность ×2."
+  }
+}
