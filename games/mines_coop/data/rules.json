@@ -1,0 +1,7 @@
+{
+  "board_size": 10,
+  "default_mines": 15,
+  "start_hp": 3,
+  "max_players": 4,
+  "min_players": 1
+}
