@@ -1,0 +1,6 @@
+{
+  "field": 10,
+  "cols": "ABCDEFGHIJ",
+  "fleet": [4, 3, 3, 2, 2, 2, 1, 1, 1, 1],
+  "player_colors": ["#3b82f6", "#ec4899", "#a855f7", "#f59e0b"]
+}
