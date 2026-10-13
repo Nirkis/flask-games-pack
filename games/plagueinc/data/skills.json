@@ -1,0 +1,307 @@
+{
+  "nodes": {
+    "body": {
+      "name": "Организм", "emoji": "🧬", "x": 50, "y": 3, "max": 5,
+      "requires": [], "system": "root",
+      "effect": {"all": 0.02},
+      "desc": "+2 % ко всем эффектам ниже.",
+      "cost_tier": "system"
+    },
+    "sys_resp": {
+      "name": "Дыхательная", "emoji": "🫁", "x": 8, "y": 14, "max": 5,
+      "requires": [["body", 2]], "system": "respiratory",
+      "effect": {"spread": 0.02}, "desc": "+2 % распространение.",
+      "cost_tier": "system"
+    },
+    "sys_dig": {
+      "name": "Пищеварительная", "emoji": "🫄", "x": 24, "y": 14, "max": 5,
+      "requires": [["body", 2]], "system": "digestive",
+      "effect": {"spread": 0.02}, "desc": "+2 % распространение.",
+      "cost_tier": "system"
+    },
+    "sys_ner": {
+      "name": "Нервная", "emoji": "🧠", "x": 40, "y": 14, "max": 5,
+      "requires": [["body", 3]], "system": "nervous",
+      "effect": {"kill": 0.02}, "desc": "+2 % смертность.",
+      "cost_tier": "system"
+    },
+    "sys_circ": {
+      "name": "Кровеносная", "emoji": "🩸", "x": 56, "y": 14, "max": 5,
+      "requires": [["body", 3]], "system": "circulatory",
+      "effect": {"spread": 0.02}, "desc": "+2 % распространение.",
+      "cost_tier": "system"
+    },
+    "sys_rep": {
+      "name": "Половая", "emoji": "⚧", "x": 72, "y": 14, "max": 5,
+      "requires": [["body", 3]], "system": "reproductive",
+      "effect": {"spread": 0.02}, "desc": "+2 % распространение.",
+      "cost_tier": "system"
+    },
+    "sys_imm": {
+      "name": "Иммунная", "emoji": "🛡", "x": 88, "y": 14, "max": 5,
+      "requires": [["body", 4]], "system": "immune",
+      "effect": {"om_rate": 0.05, "vaccine_slow": 0.02},
+      "desc": "+5 % ОМ, −2 % вакцина.",
+      "cost_tier": "system"
+    },
+
+    "trachea": {
+      "name": "Трахея", "emoji": "🌬", "x": 4, "y": 28, "max": 5,
+      "requires": [["sys_resp", 2]], "system": "respiratory",
+      "effect": {"spread": 0.03}, "desc": "+3 % распространение.",
+      "cost_tier": "organ"
+    },
+    "bronchi": {
+      "name": "Бронхи", "emoji": "🌿", "x": 12, "y": 28, "max": 5,
+      "requires": [["sys_resp", 4]], "system": "respiratory",
+      "effect": {"spread": 0.03, "kill": 0.03}, "desc": "+3 %/+3 %.",
+      "cost_tier": "organ"
+    },
+    "lungs": {
+      "name": "Лёгкие", "emoji": "🫁", "x": 8, "y": 40, "max": 5,
+      "requires": [["trachea", 3]], "system": "respiratory",
+      "effect": {"kill": 0.05}, "desc": "+5 % смертность.",
+      "cost_tier": "organ"
+    },
+    "cough": {
+      "name": "Кашель", "emoji": "💨", "x": 4, "y": 52, "max": 1,
+      "requires": [["trachea", 2], ["lungs", 2]], "system": "respiratory",
+      "effect": {"spread": 0.25}, "desc": "КОМБО: +25 % распространение.",
+      "cost_tier": "combo"
+    },
+    "pleuritis": {
+      "name": "Плеврит", "emoji": "🩸", "x": 12, "y": 52, "max": 1,
+      "requires": [["bronchi", 3], ["lungs", 3]], "system": "respiratory",
+      "effect": {"spread": 0.20, "kill": 0.10}, "desc": "КОМБО: +20 %/+10 %.",
+      "cost_tier": "combo"
+    },
+    "pneumonia": {
+      "name": "Пневмония", "emoji": "🔥", "x": 8, "y": 64, "max": 1,
+      "requires": [["bronchi", 5], ["lungs", 5]], "system": "respiratory",
+      "effect": {"kill": 0.50}, "desc": "СУПЕР: +50 % смертность.",
+      "cost_tier": "combo"
+    },
+    "tuberculosis": {
+      "name": "Туберкулёз", "emoji": "☠", "x": 8, "y": 76, "max": 1,
+      "requires": [["pneumonia", 1], ["pleuritis", 1]], "system": "respiratory",
+      "effect": {"spread": 0.60, "kill": 0.60, "visibility": 0.40},
+      "desc": "ФИНАЛ: +60 %/+60 %, +40 % заметность.",
+      "cost_tier": "final"
+    },
+
+    "stomach": {
+      "name": "Желудок", "emoji": "🫄", "x": 20, "y": 28, "max": 5,
+      "requires": [["sys_dig", 2]], "system": "digestive",
+      "effect": {"spread": 0.03}, "desc": "+3 % распространение.",
+      "cost_tier": "organ"
+    },
+    "intestine": {
+      "name": "Кишечник", "emoji": "🧶", "x": 28, "y": 28, "max": 5,
+      "requires": [["sys_dig", 4]], "system": "digestive",
+      "effect": {"spread": 0.04}, "desc": "+4 % распространение.",
+      "cost_tier": "organ"
+    },
+    "liver": {
+      "name": "Печень", "emoji": "🍺", "x": 24, "y": 40, "max": 5,
+      "requires": [["stomach", 3]], "system": "digestive",
+      "effect": {"kill": 0.05}, "desc": "+5 % смертность.",
+      "cost_tier": "organ"
+    },
+    "diarrhea": {
+      "name": "Диарея", "emoji": "💩", "x": 20, "y": 52, "max": 1,
+      "requires": [["stomach", 2], ["intestine", 2]], "system": "digestive",
+      "effect": {"spread": 0.30}, "desc": "КОМБО: +30 % распространение.",
+      "cost_tier": "combo"
+    },
+    "vomit": {
+      "name": "Рвота", "emoji": "🤢", "x": 28, "y": 52, "max": 1,
+      "requires": [["stomach", 3], ["intestine", 3]], "system": "digestive",
+      "effect": {"spread": 0.15, "kill": 0.15}, "desc": "КОМБО: +15 %/+15 %.",
+      "cost_tier": "combo"
+    },
+    "cholera": {
+      "name": "Холера", "emoji": "💧", "x": 24, "y": 64, "max": 1,
+      "requires": [["diarrhea", 1], ["vomit", 1], ["intestine", 5]], "system": "digestive",
+      "effect": {"spread": 0.40, "kill": 0.20}, "desc": "СУПЕР: +40 %/+20 %.",
+      "cost_tier": "combo"
+    },
+    "dysentery": {
+      "name": "Дизентерия", "emoji": "☣", "x": 24, "y": 76, "max": 1,
+      "requires": [["cholera", 1], ["liver", 5]], "system": "digestive",
+      "effect": {"spread": 0.30, "kill": 0.50, "visibility": 0.20},
+      "desc": "ФИНАЛ: +30 %/+50 %, +20 % заметность.",
+      "cost_tier": "final"
+    },
+
+    "brain": {
+      "name": "Головной мозг", "emoji": "🧠", "x": 36, "y": 28, "max": 5,
+      "requires": [["sys_ner", 2]], "system": "nervous",
+      "effect": {"kill": 0.04}, "desc": "+4 % смертность.",
+      "cost_tier": "organ"
+    },
+    "spine": {
+      "name": "Спинной мозг", "emoji": "🦴", "x": 44, "y": 28, "max": 5,
+      "requires": [["sys_ner", 4]], "system": "nervous",
+      "effect": {"kill": 0.03, "spread": 0.02}, "desc": "+3 %/+2 %.",
+      "cost_tier": "organ"
+    },
+    "headache": {
+      "name": "Головная боль", "emoji": "🤕", "x": 36, "y": 52, "max": 1,
+      "requires": [["brain", 2], ["spine", 2]], "system": "nervous",
+      "effect": {"spread": 0.20}, "desc": "КОМБО: +20 % распространение.",
+      "cost_tier": "combo"
+    },
+    "confusion": {
+      "name": "Помутнение", "emoji": "😵", "x": 44, "y": 52, "max": 1,
+      "requires": [["brain", 3], ["spine", 3]], "system": "nervous",
+      "effect": {"spread": 0.15, "kill": 0.15}, "desc": "КОМБО: +15 %/+15 %.",
+      "cost_tier": "combo"
+    },
+    "encephalitis": {
+      "name": "Энцефалит", "emoji": "🧠", "x": 40, "y": 64, "max": 1,
+      "requires": [["brain", 5], ["confusion", 1]], "system": "nervous",
+      "effect": {"kill": 0.40}, "desc": "СУПЕР: +40 % смертность.",
+      "cost_tier": "combo"
+    },
+    "madness": {
+      "name": "Безумие", "emoji": "☠", "x": 40, "y": 76, "max": 1,
+      "requires": [["encephalitis", 1], ["headache", 1]], "system": "nervous",
+      "effect": {"spread": 0.50, "kill": 0.30, "visibility": 0.30},
+      "desc": "ФИНАЛ: +50 %/+30 %, +30 % заметность.",
+      "cost_tier": "final"
+    },
+
+    "vessels": {
+      "name": "Сосуды", "emoji": "🩸", "x": 52, "y": 28, "max": 5,
+      "requires": [["sys_circ", 2]], "system": "circulatory",
+      "effect": {"spread": 0.03}, "desc": "+3 % распространение.",
+      "cost_tier": "organ"
+    },
+    "heart": {
+      "name": "Сердце", "emoji": "❤", "x": 60, "y": 28, "max": 5,
+      "requires": [["sys_circ", 4]], "system": "circulatory",
+      "effect": {"kill": 0.05}, "desc": "+5 % смертность.",
+      "cost_tier": "organ"
+    },
+    "blood": {
+      "name": "Кровь", "emoji": "🩸", "x": 56, "y": 40, "max": 5,
+      "requires": [["vessels", 3], ["heart", 2]], "system": "circulatory",
+      "effect": {"spread": 0.04, "kill": 0.02}, "desc": "+4 %/+2 %.",
+      "cost_tier": "organ"
+    },
+    "bleeding": {
+      "name": "Кровотечение", "emoji": "🩸", "x": 52, "y": 52, "max": 1,
+      "requires": [["vessels", 2], ["blood", 2]], "system": "circulatory",
+      "effect": {"spread": 0.25, "kill": 0.10}, "desc": "КОМБО: +25 %/+10 %.",
+      "cost_tier": "combo"
+    },
+    "infarction": {
+      "name": "Инфаркт", "emoji": "💔", "x": 60, "y": 52, "max": 1,
+      "requires": [["heart", 4], ["vessels", 3]], "system": "circulatory",
+      "effect": {"kill": 0.40}, "desc": "СУПЕР: +40 % смертность.",
+      "cost_tier": "combo"
+    },
+    "sepsis": {
+      "name": "Сепсис", "emoji": "🔥", "x": 56, "y": 64, "max": 1,
+      "requires": [["blood", 5], ["infarction", 1]], "system": "circulatory",
+      "effect": {"kill": 0.55, "visibility": 0.20},
+      "desc": "ФИНАЛ: +55 % смертность, +20 % заметность.",
+      "cost_tier": "final"
+    },
+    "hemorrhage": {
+      "name": "Геморрагия", "emoji": "🩸", "x": 56, "y": 76, "max": 1,
+      "requires": [["sepsis", 1], ["bleeding", 1]], "system": "circulatory",
+      "effect": {"spread": 0.35, "kill": 0.65, "visibility": 0.35},
+      "desc": "ЛЕГЕНДА: +35 %/+65 %, +35 % заметность.",
+      "cost_tier": "legendary"
+    },
+
+    "mucosa": {
+      "name": "Слизистые", "emoji": "🫧", "x": 68, "y": 28, "max": 5,
+      "requires": [["sys_rep", 2]], "system": "reproductive",
+      "effect": {"spread": 0.04}, "desc": "+4 % распространение.",
+      "cost_tier": "organ"
+    },
+    "gonads": {
+      "name": "Гонады", "emoji": "🥚", "x": 76, "y": 28, "max": 5,
+      "requires": [["sys_rep", 4]], "system": "reproductive",
+      "effect": {"spread": 0.03, "stealth": 0.03}, "desc": "+3 %/+3 % скрытность.",
+      "cost_tier": "organ"
+    },
+    "hidden_transmission": {
+      "name": "Скрытая передача", "emoji": "🩸", "x": 68, "y": 52, "max": 1,
+      "requires": [["mucosa", 2], ["gonads", 2]], "system": "reproductive",
+      "effect": {"spread": 0.30, "stealth": 0.20},
+      "desc": "КОМБО: +30 % распр., +20 % скрытность.",
+      "cost_tier": "combo"
+    },
+    "vertical_transmission": {
+      "name": "Вертикальная передача", "emoji": "🧬", "x": 76, "y": 52, "max": 1,
+      "requires": [["gonads", 4], ["mucosa", 3]], "system": "reproductive",
+      "effect": {"spread": 0.20, "stealth": 0.25},
+      "desc": "КОМБО: +20 % распр., +25 % скрытность.",
+      "cost_tier": "combo"
+    },
+    "sexual_storm": {
+      "name": "Половой шторм", "emoji": "🌐", "x": 72, "y": 64, "max": 1,
+      "requires": [["vertical_transmission", 1], ["hidden_transmission", 1]],
+      "system": "reproductive",
+      "effect": {"spread": 0.50, "stealth": 0.40},
+      "desc": "СУПЕР: +50 % распр., +40 % скрытность.",
+      "cost_tier": "final"
+    },
+
+    "immunosuppression": {
+      "name": "Иммуносупрессия", "emoji": "⛔", "x": 84, "y": 28, "max": 5,
+      "requires": [["sys_imm", 2]], "system": "immune",
+      "effect": {"vaccine_slow": 0.10}, "desc": "−10 % вакцина.",
+      "cost_tier": "organ"
+    },
+    "masking": {
+      "name": "Маскировка", "emoji": "🎭", "x": 92, "y": 28, "max": 5,
+      "requires": [["sys_imm", 4]], "system": "immune",
+      "effect": {"stealth": 0.15}, "desc": "+15 % скрытность.",
+      "cost_tier": "organ"
+    },
+    "genomic": {
+      "name": "Геномная изменчивость", "emoji": "🧬", "x": 88, "y": 52, "max": 1,
+      "requires": [["immunosuppression", 3], ["masking", 3]], "system": "immune",
+      "effect": {"vaccine_slow": 0.30}, "desc": "КОМБО: −30 % вакцина.",
+      "cost_tier": "combo"
+    },
+    "cytokine": {
+      "name": "Цитокиновый шторм", "emoji": "☣", "x": 88, "y": 64, "max": 1,
+      "requires": [["immunosuppression", 5], ["masking", 3]], "system": "immune",
+      "effect": {"vaccine_slow": 0.40, "kill": 0.30},
+      "desc": "СУПЕР: −40 % вакцина, +30 % смертность.",
+      "cost_tier": "final"
+    },
+    "autoimmune": {
+      "name": "Автоиммунный коллапс", "emoji": "☠", "x": 88, "y": 76, "max": 1,
+      "requires": [["cytokine", 1], ["genomic", 1]], "system": "immune",
+      "effect": {"vaccine_slow": 0.60, "visibility": 0.50},
+      "desc": "ФИНАЛ: −60 % вакцина, +50 % заметность.",
+      "cost_tier": "legendary"
+    },
+
+    "pandemic": {
+      "name": "Пандемия", "emoji": "🦠", "x": 50, "y": 92, "max": 1,
+      "requires": [
+        ["tuberculosis", 1], ["dysentery", 1], ["madness", 1],
+        ["hemorrhage", 1], ["sexual_storm", 1], ["autoimmune", 1]
+      ],
+      "system": "root",
+      "effect": {"spread": 0.80, "kill": 0.80, "visibility": 0.50},
+      "desc": "ЛЕГЕНДА: все 6 финалов. +80 %/+80 %, +50 % заметность.",
+      "cost_tier": "legendary"
+    }
+  },
+
+  "costs": {
+    "system":    {"base": 1, "per_level": 1},
+    "organ":     {"base": 2, "per_level": 1},
+    "combo":     {"base": 5, "per_level": 0},
+    "final":     {"base": 10, "per_level": 0},
+    "legendary": {"base": 20, "per_level": 0}
+  }
+}
