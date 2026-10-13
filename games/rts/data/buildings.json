@@ -1,0 +1,310 @@
+{
+  "town_hall": {
+    "name": "Ратуша",
+    "race": "alliance",
+    "hp": 1500,
+    "armor": 5,
+    "armor_type": "fortified",
+    "footprint": [
+      4,
+      4
+    ],
+    "vision": 10,
+    "sprite": "town_hall.png",
+    "researches": [],
+    "is_main": true,
+    "food_provided": 10,
+    "accepts_resources": true,
+    "abilities": [
+      "train_town_hall"
+    ]
+  },
+  "barracks_alliance": {
+    "name": "Казарма Альянса",
+    "race": "alliance",
+    "hp": 1200,
+    "armor": 4,
+    "armor_type": "fortified",
+    "footprint": [
+      3,
+      3
+    ],
+    "vision": 8,
+    "sprite": "barracks_alliance.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 0,
+    "accepts_resources": false,
+    "abilities": [
+      "train_barracks_alliance"
+    ]
+  },
+  "farm": {
+    "name": "Ферма",
+    "race": "alliance",
+    "hp": 800,
+    "armor": 3,
+    "armor_type": "fortified",
+    "footprint": [
+      2,
+      2
+    ],
+    "vision": 6,
+    "sprite": "farm.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 10,
+    "accepts_resources": false,
+    "abilities": []
+  },
+  "altar_of_light": {
+    "name": "Алтарь Света",
+    "race": "alliance",
+    "hp": 900,
+    "armor": 3,
+    "armor_type": "fortified",
+    "footprint": [
+      3,
+      3
+    ],
+    "vision": 8,
+    "sprite": "altar_of_light.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 0,
+    "accepts_resources": false,
+    "abilities": [
+      "train_altar_of_light"
+    ]
+  },
+  "great_hall": {
+    "name": "Большой зал",
+    "race": "horde",
+    "hp": 1600,
+    "armor": 5,
+    "armor_type": "fortified",
+    "footprint": [
+      4,
+      4
+    ],
+    "vision": 10,
+    "sprite": "great_hall.png",
+    "researches": [],
+    "is_main": true,
+    "food_provided": 10,
+    "accepts_resources": true,
+    "abilities": [
+      "train_great_hall"
+    ]
+  },
+  "barracks_horde": {
+    "name": "Казарма Орды",
+    "race": "horde",
+    "hp": 1150,
+    "armor": 4,
+    "armor_type": "fortified",
+    "footprint": [
+      3,
+      3
+    ],
+    "vision": 8,
+    "sprite": "barracks_horde.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 0,
+    "accepts_resources": false,
+    "abilities": [
+      "train_barracks_horde"
+    ]
+  },
+  "food_totem": {
+    "name": "Тотем еды",
+    "race": "horde",
+    "hp": 800,
+    "armor": 3,
+    "armor_type": "fortified",
+    "footprint": [
+      2,
+      2
+    ],
+    "vision": 6,
+    "sprite": "food_totem.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 10,
+    "accepts_resources": false,
+    "abilities": []
+  },
+  "altar_of_storms": {
+    "name": "Алтарь Штормов",
+    "race": "horde",
+    "hp": 900,
+    "armor": 3,
+    "armor_type": "fortified",
+    "footprint": [
+      3,
+      3
+    ],
+    "vision": 8,
+    "sprite": "altar_of_storms.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 0,
+    "accepts_resources": false,
+    "abilities": [
+      "train_altar_of_storms"
+    ]
+  },
+  "necropolis": {
+    "name": "Некрополь",
+    "race": "undead",
+    "hp": 1500,
+    "armor": 5,
+    "armor_type": "fortified",
+    "footprint": [
+      4,
+      4
+    ],
+    "vision": 10,
+    "sprite": "necropolis.png",
+    "researches": [],
+    "is_main": true,
+    "food_provided": 10,
+    "accepts_resources": true,
+    "abilities": [
+      "train_necropolis"
+    ]
+  },
+  "crypt": {
+    "name": "Крипт",
+    "race": "undead",
+    "hp": 1100,
+    "armor": 4,
+    "armor_type": "fortified",
+    "footprint": [
+      3,
+      3
+    ],
+    "vision": 8,
+    "sprite": "crypt.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 0,
+    "accepts_resources": false,
+    "abilities": []
+  },
+  "ziggurat": {
+    "name": "Зиккурат",
+    "race": "undead",
+    "hp": 800,
+    "armor": 3,
+    "armor_type": "fortified",
+    "footprint": [
+      2,
+      2
+    ],
+    "vision": 9,
+    "sprite": "ziggurat.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 10,
+    "accepts_resources": false,
+    "abilities": []
+  },
+  "altar_of_darkness": {
+    "name": "Алтарь Тьмы",
+    "race": "undead",
+    "hp": 900,
+    "armor": 3,
+    "armor_type": "fortified",
+    "footprint": [
+      3,
+      3
+    ],
+    "vision": 8,
+    "sprite": "altar_of_darkness.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 0,
+    "accepts_resources": false,
+    "abilities": [
+      "train_altar_of_darkness"
+    ]
+  },
+  "tree_of_life": {
+    "name": "Древо Жизни",
+    "race": "night_elf",
+    "hp": 1500,
+    "armor": 5,
+    "armor_type": "fortified",
+    "footprint": [
+      4,
+      4
+    ],
+    "vision": 10,
+    "sprite": "tree_of_life.png",
+    "researches": [],
+    "is_main": true,
+    "food_provided": 10,
+    "accepts_resources": true,
+    "abilities": [
+      "train_tree_of_life"
+    ]
+  },
+  "ancient_of_war": {
+    "name": "Древний Войны",
+    "race": "night_elf",
+    "hp": 1200,
+    "armor": 4,
+    "armor_type": "fortified",
+    "footprint": [
+      3,
+      3
+    ],
+    "vision": 8,
+    "sprite": "ancient_of_war.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 0,
+    "accepts_resources": false,
+    "abilities": []
+  },
+  "moon_well": {
+    "name": "Лунный колодец",
+    "race": "night_elf",
+    "hp": 800,
+    "armor": 3,
+    "armor_type": "fortified",
+    "footprint": [
+      2,
+      2
+    ],
+    "vision": 7,
+    "sprite": "moon_well.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 10,
+    "accepts_resources": false,
+    "abilities": []
+  },
+  "altar_of_elders": {
+    "name": "Алтарь Старейшин",
+    "race": "night_elf",
+    "hp": 900,
+    "armor": 3,
+    "armor_type": "fortified",
+    "footprint": [
+      3,
+      3
+    ],
+    "vision": 8,
+    "sprite": "altar_of_elders.png",
+    "researches": [],
+    "is_main": false,
+    "food_provided": 0,
+    "accepts_resources": false,
+    "abilities": [
+      "train_altar_of_elders"
+    ]
+  }
+}
