@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Наследие Азерота</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="{{ url_for('rts.static', filename='rts/style.css') }}">
+</head>
+<body>
+<div id="rts-root">
+
+    <div id="topbar">
+        <span id="res-gold"  class="r">Gold: 0</span>
+        <span id="res-wood"  class="r">Wood: 0</span>
+        <span id="res-food"  class="r">Food: 0/0</span>
+        <span id="sel-count" class="r">Выделено: 0</span>
+        <span id="hint"></span>
+        <span id="timer">00:00</span>
+        <span id="dot" title="связь"></span>
+    </div>
+
+    <canvas id="game"></canvas>
+
+    <div id="minimap-wrap"><canvas id="minimap"></canvas></div>
+
+    <div id="bottombar">
+        <div id="portrait-wrap">
+            <canvas id="portrait" width="96" height="96"></canvas>
+            <div id="portrait-name">—</div>
+        </div>
+        <div id="cmd-grid"></div>
+        <div id="info-panel"></div>
+    </div>
+    <div id="lobby-overlay">
+        <div class="lobby-card">
+            <h2>Лобби</h2>
+            <div id="lobby-players"></div>
+            <h3>Выберите расу</h3>
+            <div id="race-buttons">
+                <button data-race="alliance">Альянс</button>
+                <button data-race="horde">Орда</button>
+                <button data-race="undead">Нежить</button>
+                <button data-race="night_elf">Ночные эльфы</button>
+            </div>
+            <p class="lobby-hint">Ждём игроков…</p>
+        </div>
+    </div>
+    <div id="victory-overlay">
+    <div class="vcard"><h2 id="vtitle"></h2><p id="vsub"></p></div>
+    </div>
+    <div id="toast"></div>
+</div>
+
+<script src="{{ url_for('static', filename='js/game_client.js') }}"></script>
+<script src="{{ url_for('rts.static', filename='rts/game.js') }}"></script>
+</body>
+</html>
